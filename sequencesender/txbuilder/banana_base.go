@@ -116,7 +116,7 @@ func (t *TxBuilderBananaBase) GetCounterL1InfoRoot(ctx context.Context, highestL
 		return resL1InfoCounter, nil
 	}
 	if resL1InfoCounter > highestL1IndexInBatch {
-		log.Info("zjg, GetCounterL1InfoRoot, resL1InfoCounter > highestL1IndexInBatch:%v, %v", resL1InfoCounter, highestL1IndexInBatch)
+		log.Infof("zjg, GetCounterL1InfoRoot, resL1InfoCounter > highestL1IndexInBatch:%v, %v", resL1InfoCounter, highestL1IndexInBatch)
 		return resL1InfoCounter, nil
 	}
 
