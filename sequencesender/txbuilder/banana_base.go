@@ -98,6 +98,7 @@ func (t *TxBuilderBananaBase) GetCounterL1InfoRoot(ctx context.Context, highestL
 	info, err := t.l1InfoTree.GetLatestInfoUntilBlock(ctx, header.Number.Uint64())
 	if err == nil {
 		resL1InfoCounter = info.L1InfoTreeIndex + 1
+		log.Infof("zjg, GetCounterL1InfoRoot--1: %v", resL1InfoCounter)
 	}
 	if errors.Is(err, l1infotreesync.ErrNotFound) {
 		// There are no L1 Info tree leaves yet, so we can try to use L1InfoRootMap event
@@ -107,6 +108,7 @@ func (t *TxBuilderBananaBase) GetCounterL1InfoRoot(ctx context.Context, highestL
 		}
 		// We use this leaf as first one
 		resL1InfoCounter = l1infotreeInitial.LeafCount
+		log.Infof("zjg, GetCounterL1InfoRoot--2: %v", resL1InfoCounter)
 	} else if err != nil {
 		return 0, fmt.Errorf("error calling GetLatestInfoUntilBlock with block num %d: %w", header.Number.Uint64(), err)
 	}
@@ -116,7 +118,7 @@ func (t *TxBuilderBananaBase) GetCounterL1InfoRoot(ctx context.Context, highestL
 		return resL1InfoCounter, nil
 	}
 	if resL1InfoCounter > highestL1IndexInBatch {
-		log.Infof("zjg, GetCounterL1InfoRoot, resL1InfoCounter > highestL1IndexInBatch:%v, %v", resL1InfoCounter, highestL1IndexInBatch)
+		log.Infof("zjg, GetCounterL1InfoRoot--3, resL1InfoCounter > highestL1IndexInBatch:%v, %v", resL1InfoCounter, highestL1IndexInBatch)
 		return resL1InfoCounter, nil
 	}
 
