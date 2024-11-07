@@ -90,6 +90,7 @@ func getHighestL1InfoIndex(batches []etherman.Batch) uint32 {
 func (t *TxBuilderBananaBase) GetCounterL1InfoRoot(ctx context.Context, highestL1IndexInBatch uint32) (uint32, error) {
 	header, err := t.ethClient.HeaderByNumber(ctx, t.blockFinality)
 	if err != nil {
+		log.Infof("zjg, GetCounterL1InfoRoot: error calling HeaderByNumber, with block finality %d: %w", t.blockFinality.Int64(), err)
 		return 0, fmt.Errorf("error calling HeaderByNumber, with block finality %d: %w", t.blockFinality.Int64(), err)
 	}
 	var resL1InfoCounter uint32
@@ -111,10 +112,11 @@ func (t *TxBuilderBananaBase) GetCounterL1InfoRoot(ctx context.Context, highestL
 	}
 	// special case: there are no leaves in L1InfoTree yet
 	if resL1InfoCounter == 0 && highestL1IndexInBatch == 0 {
-		log.Infof("No L1 Info tree leaves yet, batch use no leaf")
+		log.Infof("zjg, GetCounterL1InfoRoot, No L1 Info tree leaves yet, batch use no leaf")
 		return resL1InfoCounter, nil
 	}
 	if resL1InfoCounter > highestL1IndexInBatch {
+		log.Info("zjg, GetCounterL1InfoRoot, resL1InfoCounter > highestL1IndexInBatch:%v, %v", resL1InfoCounter, highestL1IndexInBatch)
 		return resL1InfoCounter, nil
 	}
 
@@ -151,6 +153,7 @@ func (t *TxBuilderBananaBase) NewSequence(
 	if err != nil {
 		return nil, err
 	}
+	log.Infof("zjg, counterL1InfoRoot: %v", counterL1InfoRoot)
 	sequence.CounterL1InfoRoot = counterL1InfoRoot
 	l1InfoRoot, err := t.getL1InfoRoot(sequence.CounterL1InfoRoot)
 	if err != nil {
