@@ -25,7 +25,8 @@ func NewSQLiteDB(dbPath string) (*sql.DB, error) {
 		PRAGMA foreign_keys = ON;
 		pragma journal_mode = WAL;
 		pragma synchronous = normal;
-		pragma journal_size_limit  = 6144000;
+		PRAGMA synchronous = FULL; 
+		pragma journal_size_limit  = 6144000;       
 	`)
 	return db, err
 }

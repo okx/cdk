@@ -183,6 +183,7 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 		tx, info,
 		`SELECT * FROM l1info_leaf ORDER BY block_num DESC, block_pos DESC LIMIT 1;`,
 	)
+	log.Infof("zjg, l1info_leaf select result:%v", err)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, db.ErrNotFound
@@ -302,6 +303,7 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			}
 			info.GlobalExitRoot = info.globalExitRoot()
 			info.Hash = info.hash()
+			log.Infof("zjg, insert l1info_leaf:%v", info.Hash.String())
 			if err = meddler.Insert(tx, "l1info_leaf", info); err != nil {
 				return fmt.Errorf("insert l1info_leaf %s. err: %w", info.String(), err)
 			}
