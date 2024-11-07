@@ -370,7 +370,6 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 		s.logger.Errorf("error estimating gas: ", err)
 		return
 	}
-	panic("zjg, done")
 	// Add sequence tx
 	err = s.sendTx(ctx, false, nil, tx.To(), firstBatch.BatchNumber(), lastBatch.BatchNumber(), tx.Data(), gas)
 	if err != nil {

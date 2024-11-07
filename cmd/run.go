@@ -524,6 +524,7 @@ func runL1InfoTreeSyncerIfNeeded(
 		cfg.L1InfoTreeSync.MaxRetryAttemptsAfterError,
 		l1infotreesync.FlagNone,
 	)
+	log.Infof("zjg, cfg.L1InfoTreeSync.GlobalExitRootAddr:%v, cfg.L1InfoTreeSync.RollupManagerAddr %v", cfg.L1InfoTreeSync.GlobalExitRootAddr, cfg.L1InfoTreeSync.RollupManagerAddr)
 	if err != nil {
 		log.Fatal(err)
 	}
