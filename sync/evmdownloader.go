@@ -197,6 +197,7 @@ func (d *EVMDownloaderImplementation) GetEventsByBlockRange(ctx context.Context,
 					)
 					return d.GetEventsByBlockRange(ctx, fromBlock, toBlock)
 				}
+				log.Infof("zjg, GetEventsByBlockRange, l.TxHash:%v", l.TxHash.String())
 				blocks = append(blocks, EVMBlock{
 					EVMBlockHeader: EVMBlockHeader{
 						Num:        l.BlockNumber,
