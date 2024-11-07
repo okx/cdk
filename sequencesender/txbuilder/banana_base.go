@@ -201,6 +201,7 @@ func SequenceSanityCheck(seq *etherman.SequenceBanana) error {
 	if err != nil {
 		return err
 	}
+	log.Infof("zjg, seq.CounterL1InfoRoot: %v, maxL1InfoIndex: %v", seq.CounterL1InfoRoot, maxL1InfoIndex)
 	if seq.CounterL1InfoRoot < maxL1InfoIndex+1 {
 		return fmt.Errorf("wrong CounterL1InfoRoot(%d): BatchL2Data (max=%d) ", seq.CounterL1InfoRoot, maxL1InfoIndex)
 	}
