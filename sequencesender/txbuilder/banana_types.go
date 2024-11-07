@@ -2,6 +2,7 @@ package txbuilder
 
 import (
 	"fmt"
+	"github.com/0xPolygon/cdk/log"
 
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
@@ -150,6 +151,7 @@ func (b *BananaSequence) SetLastVirtualBatchNumber(batchNumber uint64) {
 }
 
 func calculateMaxL1InfoTreeIndexInsideL2Data(l2data []byte) (uint32, error) {
+	log.Infof("zjg,l2data len: %v", len(l2data))
 	batchRawV2, err := state.DecodeBatchV2(l2data)
 	if err != nil {
 		return 0, fmt.Errorf("calculateMaxL1InfoTreeIndexInsideL2Data: error decoding batchL2Data, err:%w", err)
@@ -159,6 +161,7 @@ func calculateMaxL1InfoTreeIndexInsideL2Data(l2data []byte) (uint32, error) {
 	}
 	maxIndex := uint32(0)
 	for _, block := range batchRawV2.Blocks {
+		log.Infof("zjg,block:%v, IndexL1InfoTree: %v", block.BlockNumber, block.IndexL1InfoTree)
 		if block.IndexL1InfoTree > maxIndex {
 			maxIndex = block.IndexL1InfoTree
 		}
@@ -172,6 +175,7 @@ func calculateMaxL1InfoTreeIndexInsideSequence(seq *etherman.SequenceBanana) (ui
 	}
 	maxIndex := uint32(0)
 	for _, batch := range seq.Batches {
+		log.Infof("zjg,batch:%v, batch index:%v", batch.BatchNumber, batch.L1InfoTreeIndex)
 		index, err := calculateMaxL1InfoTreeIndexInsideL2Data(batch.L2Data)
 		if err != nil {
 			return 0, fmt.Errorf("calculateMaxL1InfoTreeIndexInsideBatches: error getting batch L1InfoTree , err:%w", err)
