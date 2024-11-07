@@ -173,7 +173,6 @@ func (s *SequenceSender) batchRetrieval(ctx context.Context) error {
 			// Try to retrieve batch from RPC
 			rpcBatch, err := s.rpcClient.GetBatch(currentBatchNumber)
 			log.Infof("zjg, rpcClient batch: %v, l2 data len:%v, accInputHash:%v,lastL2BlockTimestamp:%v", rpcBatch.BatchNumber(), len(rpcBatch.L2Data()), rpcBatch.AccInputHash(), rpcBatch.LastL2BLockTimestamp())
-			rpcBatch.Cu
 			if err != nil {
 				if errors.Is(err, ethtxmanager.ErrNotFound) {
 					s.logger.Infof("batch %d not found in RPC", currentBatchNumber)
