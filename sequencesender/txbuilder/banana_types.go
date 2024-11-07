@@ -161,7 +161,7 @@ func calculateMaxL1InfoTreeIndexInsideL2Data(l2data []byte) (uint32, error) {
 	}
 	maxIndex := uint32(0)
 	for _, block := range batchRawV2.Blocks {
-		log.Infof("zjg,block:%v, IndexL1InfoTree: %v", block.BlockNumber, block.IndexL1InfoTree)
+		log.Infof("zjg,block:%v, IndexL1InfoTree: %v, DeltaTimestamp:%v", block.BlockNumber, block.IndexL1InfoTree, block.DeltaTimestamp)
 		if block.IndexL1InfoTree > maxIndex {
 			maxIndex = block.IndexL1InfoTree
 		}

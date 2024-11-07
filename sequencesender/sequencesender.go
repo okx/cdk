@@ -172,6 +172,7 @@ func (s *SequenceSender) batchRetrieval(ctx context.Context) error {
 		default:
 			// Try to retrieve batch from RPC
 			rpcBatch, err := s.rpcClient.GetBatch(currentBatchNumber)
+			log.Infof("zjg, rpcClient batch: %v, l2 data len:%v, accInputHash:%v,lastL2BlockTimestamp:%v", rpcBatch.BatchNumber(), len(rpcBatch.L2Data()), rpcBatch.AccInputHash(), rpcBatch.LastL2BLockTimestamp())
 			if err != nil {
 				if errors.Is(err, ethtxmanager.ErrNotFound) {
 					s.logger.Infof("batch %d not found in RPC", currentBatchNumber)
@@ -212,7 +213,6 @@ func (s *SequenceSender) populateSequenceData(rpcBatch *types.RPCBatch, batchNum
 		s.logger.Errorf("Failed to decode batch data for batch %d, err: %v", batchNumber, err)
 		return err
 	}
-
 	if len(batchRaw.Blocks) > 0 {
 		rpcBatch.SetL1InfoTreeIndex(batchRaw.Blocks[len(batchRaw.Blocks)-1].IndexL1InfoTree)
 	}
