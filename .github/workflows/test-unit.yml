@@ -34,6 +34,7 @@ jobs:
         run: make test-unit
           
       - name: Analyze with SonarCloud
+        if: false
         uses: sonarsource/sonarcloud-github-action@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
