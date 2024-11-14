@@ -175,3 +175,5 @@ require (
 	modernc.org/token v1.1.0 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
+
+replace github.com/0xPolygon/zkevm-ethtx-manager => github.com/okx/xlayer-ethtx-manager v0.2.2
