@@ -1,5 +1,5 @@
 # CONTAINER FOR BUILDING BINARY
-FROM --platform=${BUILDPLATFORM} golang:1.22.4 AS build
+FROM golang:1.22.4 AS build
 
 WORKDIR $GOPATH/src/github.com/0xPolygon/cdk
 
@@ -12,9 +12,8 @@ COPY . .
 RUN make build-go
 
 # CONTAINER FOR RUNNING BINARY
-FROM --platform=${BUILDPLATFORM} debian:bookworm-slim
+FROM alpine:3.18.4
 
-RUN apt-get update && apt-get install -y ca-certificates postgresql-client libssl-dev && rm -rf /var/lib/apt/lists/*
 COPY --from=build /go/src/github.com/0xPolygon/cdk/target/cdk-node /usr/local/bin/
 
 CMD ["/bin/sh", "-c", "cdk"]
