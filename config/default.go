@@ -7,6 +7,7 @@ L1URL = "http://localhost:8545"
 L2URL = "http://localhost:8123"
 AggLayerURL = "https://agglayer-dev.polygon.technology"
 
+
 ForkId = 9
 ContractVersions = "elderberry"
 IsValidiumMode = false
@@ -206,16 +207,16 @@ SyncModeOnlyEnabled = false
 				NumRequests = 1000
 				Interval = "1s"
 [ReorgDetectorL1]
-DBPath = "{{PathRWData}}/reorgdetectorl1"
+DBPath = "{{PathRWData}}/reorgdetectorl1.sqlite"
 
 [ReorgDetectorL2]
-DBPath = "{{PathRWData}}/reorgdetectorl2"
+DBPath = "{{PathRWData}}/reorgdetectorl2.sqlite"
 
 [L1InfoTreeSync]
 DBPath = "{{PathRWData}}/L1InfoTreeSync.sqlite"
 GlobalExitRootAddr="{{NetworkConfig.L1.GlobalExitRootManagerAddr}}"
 RollupManagerAddr = "{{NetworkConfig.L1.RollupManagerAddr}}"
-SyncBlockChunkSize=10
+SyncBlockChunkSize=100
 BlockFinality="LatestBlock"
 URLRPCL1="{{L1URL}}"
 WaitForNewBlocksPeriod="100ms"
@@ -316,7 +317,6 @@ WaitForNewBlocksPeriod = "3s"
 OriginNetwork=1
 
 [LastGERSync]
-# MDBX database path
 DBPath = "{{PathRWData}}/lastgersync.sqlite"
 BlockFinality = "LatestBlock"
 InitialBlockNum = 0
@@ -341,5 +341,7 @@ AggsenderPrivateKey = {Path = "{{SequencerPrivateKeyPath}}", Password = "{{Seque
 BlockGetInterval = "2s"
 URLRPCL2="{{L2URL}}"
 CheckSettledInterval = "2s"
-SaveCertificatesToFiles = false
+BlockFinality = "LatestBlock"
+EpochNotificationPercentage = 50
+SaveCertificatesToFilesPath = ""
 `

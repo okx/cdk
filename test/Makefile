@@ -3,6 +3,8 @@ generate-mocks: generate-mocks-bridgesync generate-mocks-reorgdetector generate-
 	generate-mocks-da generate-mocks-l1infotreesync generate-mocks-helpers \
 	generate-mocks-sync generate-mocks-l1infotreesync generate-mocks-aggregator \
 	generate-mocks-aggsender generate-mocks-agglayer generate-mocks-bridgesync
+	generate-mocks-sync generate-mocks-l1infotreesync generate-mocks-aggregator \
+	generate-mocks-aggsender generate-mocks-agglayer generate-mocks-bridgesync
 
 .PHONY: generate-mocks-bridgesync
 generate-mocks-bridgesync: ## Generates mocks for bridgesync, using mockery tool
@@ -35,7 +37,7 @@ generate-mocks-rpc: ## Generates mocks for rpc, using mockery tool
 generate-mocks-l1infotreesync: ## Generates mocks for l1infotreesync, using mockery tool
 	rm -Rf ../l1infotreesync/mocks
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../l1infotreesync --output ../l1infotreesync/mocks --outpkg mocks_l1infotreesync ${COMMON_MOCKERY_PARAMS}
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../l1infotreesync --outpkg=l1infotreesync --structname=ReorgDetectorMock --filename=mock_reorgdetector_test.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ReorgDetector --dir=../sync --output=../l1infotreesync/mocks --outpkg=mocks_l1infotreesync --structname=ReorgDetectorMock --filename=mock_reorgdetector.go
 	
 .PHONY: generate-mocks-aggoracle
 generate-mocks-helpers: ## Generates mocks for helpers , using mockery tool
@@ -61,15 +63,12 @@ generate-mocks-aggregator: ## Generates mocks for aggregator, using mockery tool
 
 .PHONY: generate-mocks-aggsender
 generate-mocks-aggsender: ## Generates mocks for aggsender, using mockery tool
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=L1InfoTreeSyncer --dir=../aggsender/types --output=../aggsender/mocks --outpkg=mocks --structname=L1InfoTreeSyncerMock --filename=mock_l1infotree_syncer.go ${COMMON_MOCKERY_PARAMS}
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=L2BridgeSyncer --dir=../aggsender/types --output=../aggsender/mocks --outpkg=mocks --structname=L2BridgeSyncerMock --filename=mock_l2bridge_syncer.go ${COMMON_MOCKERY_PARAMS}
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Logger --dir=../aggsender/types --output=../aggsender/mocks --outpkg=mocks --structname=LoggerMock --filename=mock_logger.go ${COMMON_MOCKERY_PARAMS}
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AggSenderStorage --dir=../aggsender/db --output=../aggsender/mocks --outpkg=mocks --structname=AggSenderStorageMock --filename=mock_aggsender_storage.go ${COMMON_MOCKERY_PARAMS}
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthClient --dir=../aggsender/types --output=../aggsender/mocks --outpkg=mocks --structname=EthClientMock --filename=mock_eth_client.go ${COMMON_MOCKERY_PARAMS}
+	rm -Rf ../aggsender/mocks
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../aggsender --output ../aggsender/mocks --outpkg mocks ${COMMON_MOCKERY_PARAMS}
 
 .PHONY: generate-mocks-agglayer
 generate-mocks-agglayer: ## Generates mocks for agglayer, using mockery tool
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AgglayerClientInterface --dir=../agglayer --output=../agglayer --outpkg=agglayer --inpackage --structname=AgglayerClientMock --filename=mock_agglayer_client.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=AgglayerClientInterface --dir=../agglayer --output=../agglayer --outpkg=agglayer --inpackage --structname=AgglayerClientMock --filename=mock_agglayer_client.go ${COMMON_MOCKERY_PARAMS}
 
 .PHONY: generate-mocks-bridgesync
 generate-mocks-bridgesync: ## Generates mocks for bridgesync, using mockery tool
