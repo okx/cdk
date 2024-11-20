@@ -2,6 +2,7 @@ package agglayer
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -36,10 +37,7 @@ func (c *CertificateStatus) UnmarshalJSON(data []byte) error {
 	if strings.Contains(dataStr, "InError") {
 		status = "InError"
 	} else {
-		err := json.Unmarshal(data, &status)
-		if err != nil {
-			return err
-		}
+		status = string(data)
 	}
 
 	switch status {
@@ -84,6 +82,30 @@ type Certificate struct {
 	BridgeExits         []*BridgeExit         `json:"bridge_exits"`
 	ImportedBridgeExits []*ImportedBridgeExit `json:"imported_bridge_exits"`
 	Metadata            common.Hash           `json:"metadata"`
+}
+
+func (c *Certificate) String() string {
+	res := fmt.Sprintf("NetworkID: %d, Height: %d, PrevLocalExitRoot: %s, NewLocalExitRoot: %s,  Metadata: %s\n",
+		c.NetworkID, c.Height, common.Bytes2Hex(c.PrevLocalExitRoot[:]),
+		common.Bytes2Hex(c.NewLocalExitRoot[:]), common.Bytes2Hex(c.Metadata[:]))
+
+	if c.BridgeExits == nil {
+		res += "    BridgeExits: nil\n"
+	} else {
+		for i, bridgeExit := range c.BridgeExits {
+			res += fmt.Sprintf(", BridgeExit[%d]: %s\n", i, bridgeExit.String())
+		}
+	}
+
+	if c.ImportedBridgeExits == nil {
+		res += "    ImportedBridgeExits: nil\n"
+	} else {
+		for i, importedBridgeExit := range c.ImportedBridgeExits {
+			res += fmt.Sprintf("    ImportedBridgeExit[%d]: %s\n", i, importedBridgeExit.String())
+		}
+	}
+
+	return res
 }
 
 // Hash returns a hash that uniquely identifies the certificate
@@ -131,11 +153,42 @@ type SignedCertificate struct {
 	Signature *Signature `json:"signature"`
 }
 
+func (s *SignedCertificate) String() string {
+	return fmt.Sprintf("Certificate:%s,\nSignature: %s", s.Certificate.String(), s.Signature.String())
+}
+
+// CopyWithDefaulting returns a shallow copy of the signed certificate
+func (s *SignedCertificate) CopyWithDefaulting() *SignedCertificate {
+	certificateCopy := *s.Certificate
+
+	if certificateCopy.BridgeExits == nil {
+		certificateCopy.BridgeExits = make([]*BridgeExit, 0)
+	}
+
+	if certificateCopy.ImportedBridgeExits == nil {
+		certificateCopy.ImportedBridgeExits = make([]*ImportedBridgeExit, 0)
+	}
+
+	signature := s.Signature
+	if signature == nil {
+		signature = &Signature{}
+	}
+
+	return &SignedCertificate{
+		Certificate: &certificateCopy,
+		Signature:   signature,
+	}
+}
+
 // Signature is the data structure that will hold the signature of the given certificate
 type Signature struct {
 	R         common.Hash `json:"r"`
 	S         common.Hash `json:"s"`
 	OddParity bool        `json:"odd_y_parity"`
+}
+
+func (s *Signature) String() string {
+	return fmt.Sprintf("R: %s, S: %s, OddParity: %t", s.R.String(), s.S.String(), s.OddParity)
 }
 
 // TokenInfo encapsulates the information to uniquely identify a token on the origin network.
@@ -144,11 +197,21 @@ type TokenInfo struct {
 	OriginTokenAddress common.Address `json:"origin_token_address"`
 }
 
+// String returns a string representation of the TokenInfo struct
+func (t *TokenInfo) String() string {
+	return fmt.Sprintf("OriginNetwork: %d, OriginTokenAddress: %s", t.OriginNetwork, t.OriginTokenAddress.String())
+}
+
 // GlobalIndex represents the global index of an imported bridge exit
 type GlobalIndex struct {
 	MainnetFlag bool   `json:"mainnet_flag"`
 	RollupIndex uint32 `json:"rollup_index"`
 	LeafIndex   uint32 `json:"leaf_index"`
+}
+
+// String returns a string representation of the GlobalIndex struct
+func (g *GlobalIndex) String() string {
+	return fmt.Sprintf("MainnetFlag: %t, RollupIndex: %d, LeafIndex: %d", g.MainnetFlag, g.RollupIndex, g.LeafIndex)
 }
 
 func (g *GlobalIndex) Hash() common.Hash {
@@ -159,6 +222,29 @@ func (g *GlobalIndex) Hash() common.Hash {
 	)
 }
 
+func (g *GlobalIndex) UnmarshalFromMap(data map[string]interface{}) error {
+	rollupIndex, err := convertMapValue[uint32](data, "rollup_index")
+	if err != nil {
+		return err
+	}
+
+	leafIndex, err := convertMapValue[uint32](data, "leaf_index")
+	if err != nil {
+		return err
+	}
+
+	mainnetFlag, err := convertMapValue[bool](data, "mainnet_flag")
+	if err != nil {
+		return err
+	}
+
+	g.RollupIndex = rollupIndex
+	g.LeafIndex = leafIndex
+	g.MainnetFlag = mainnetFlag
+
+	return nil
+}
+
 // BridgeExit represents a token bridge exit
 type BridgeExit struct {
 	LeafType           LeafType       `json:"leaf_type"`
@@ -167,6 +253,20 @@ type BridgeExit struct {
 	DestinationAddress common.Address `json:"dest_address"`
 	Amount             *big.Int       `json:"amount"`
 	Metadata           []byte         `json:"metadata"`
+}
+
+func (b *BridgeExit) String() string {
+	res := fmt.Sprintf("LeafType: %s,  DestinationNetwork: %d, DestinationAddress: %s, Amount: %s, Metadata: %s",
+		b.LeafType.String(), b.DestinationNetwork, b.DestinationAddress.String(),
+		b.Amount.String(), common.Bytes2Hex(b.Metadata))
+
+	if b.TokenInfo == nil {
+		res += ", TokenInfo: nil"
+	} else {
+		res += fmt.Sprintf(", TokenInfo: %s", b.TokenInfo.String())
+	}
+
+	return res
 }
 
 // Hash returns a hash that uniquely identifies the bridge exit
@@ -252,6 +352,10 @@ func (m *MerkleProof) Hash() common.Hash {
 	)
 }
 
+func (m *MerkleProof) String() string {
+	return fmt.Sprintf("Root: %s, Proof: %v", m.Root.String(), m.Proof)
+}
+
 // L1InfoTreeLeafInner represents the inner part of the L1 info tree leaf
 type L1InfoTreeLeafInner struct {
 	GlobalExitRoot common.Hash `json:"global_exit_root"`
@@ -281,6 +385,11 @@ func (l *L1InfoTreeLeafInner) MarshalJSON() ([]byte, error) {
 	})
 }
 
+func (l *L1InfoTreeLeafInner) String() string {
+	return fmt.Sprintf("GlobalExitRoot: %s, BlockHash: %s, Timestamp: %d",
+		l.GlobalExitRoot.String(), l.BlockHash.String(), l.Timestamp)
+}
+
 // L1InfoTreeLeaf represents the leaf of the L1 info tree
 type L1InfoTreeLeaf struct {
 	L1InfoTreeIndex uint32               `json:"l1_info_tree_index"`
@@ -294,11 +403,21 @@ func (l *L1InfoTreeLeaf) Hash() common.Hash {
 	return l.Inner.Hash()
 }
 
+func (l *L1InfoTreeLeaf) String() string {
+	return fmt.Sprintf("L1InfoTreeIndex: %d, RollupExitRoot: %s, MainnetExitRoot: %s, Inner: %s",
+		l.L1InfoTreeIndex,
+		common.Bytes2Hex(l.RollupExitRoot[:]),
+		common.Bytes2Hex(l.MainnetExitRoot[:]),
+		l.Inner.String(),
+	)
+}
+
 // Claim is the interface that will be implemented by the different types of claims
 type Claim interface {
 	Type() string
 	Hash() common.Hash
 	MarshalJSON() ([]byte, error)
+	String() string
 }
 
 // ClaimFromMainnnet represents a claim originating from the mainnet
@@ -333,6 +452,11 @@ func (c *ClaimFromMainnnet) Hash() common.Hash {
 		c.ProofGERToL1Root.Hash().Bytes(),
 		c.L1Leaf.Hash().Bytes(),
 	)
+}
+
+func (c *ClaimFromMainnnet) String() string {
+	return fmt.Sprintf("ProofLeafMER: %s, ProofGERToL1Root: %s, L1Leaf: %s",
+		c.ProofLeafMER.String(), c.ProofGERToL1Root.String(), c.L1Leaf.String())
 }
 
 // ClaimFromRollup represents a claim originating from a rollup
@@ -372,11 +496,36 @@ func (c *ClaimFromRollup) Hash() common.Hash {
 	)
 }
 
+func (c *ClaimFromRollup) String() string {
+	return fmt.Sprintf("ProofLeafLER: %s, ProofLERToRER: %s, ProofGERToL1Root: %s, L1Leaf: %s",
+		c.ProofLeafLER.String(), c.ProofLERToRER.String(), c.ProofGERToL1Root.String(), c.L1Leaf.String())
+}
+
 // ImportedBridgeExit represents a token bridge exit originating on another network but claimed on the current network.
 type ImportedBridgeExit struct {
 	BridgeExit  *BridgeExit  `json:"bridge_exit"`
 	ClaimData   Claim        `json:"claim_data"`
 	GlobalIndex *GlobalIndex `json:"global_index"`
+}
+
+func (c *ImportedBridgeExit) String() string {
+	var res string
+
+	if c.BridgeExit == nil {
+		res = "BridgeExit: nil"
+	} else {
+		res = fmt.Sprintf("BridgeExit: %s", c.BridgeExit.String())
+	}
+
+	if c.GlobalIndex == nil {
+		res += ", GlobalIndex: nil"
+	} else {
+		res += fmt.Sprintf(", GlobalIndex: %s", c.GlobalIndex.String())
+	}
+
+	res += fmt.Sprintf("ClaimData: %s", c.ClaimData.String())
+
+	return res
 }
 
 // Hash returns a hash that uniquely identifies the imported bridge exit
@@ -398,9 +547,96 @@ type CertificateHeader struct {
 	NewLocalExitRoot common.Hash       `json:"new_local_exit_root"`
 	Status           CertificateStatus `json:"status"`
 	Metadata         common.Hash       `json:"metadata"`
+	Error            PPError           `json:"-"`
 }
 
 func (c CertificateHeader) String() string {
-	return fmt.Sprintf("Height: %d, CertificateID: %s, NewLocalExitRoot: %s",
-		c.Height, c.CertificateID.String(), c.NewLocalExitRoot.String())
+	errors := ""
+	if c.Error != nil {
+		errors = c.Error.String()
+	}
+
+	return fmt.Sprintf("Height: %d, CertificateID: %s, NewLocalExitRoot: %s. Status: %s. Errors: [%s]",
+		c.Height, c.CertificateID.String(), c.NewLocalExitRoot.String(), c.Status.String(), errors)
+}
+
+func (c *CertificateHeader) UnmarshalJSON(data []byte) error {
+	// we define an alias to avoid infinite recursion
+	type Alias CertificateHeader
+	aux := &struct {
+		Status interface{} `json:"status"`
+		*Alias
+	}{
+		Alias: (*Alias)(c),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	// Process Status field
+	switch status := aux.Status.(type) {
+	case string: // certificate not InError
+		if err := c.Status.UnmarshalJSON([]byte(status)); err != nil {
+			return err
+		}
+	case map[string]interface{}: // certificate has errors
+		inErrMap, err := convertMapValue[map[string]interface{}](status, "InError")
+		if err != nil {
+			return err
+		}
+
+		inErrDataMap, err := convertMapValue[map[string]interface{}](inErrMap, "error")
+		if err != nil {
+			return err
+		}
+
+		var ppError PPError
+
+		for key, value := range inErrDataMap {
+			switch key {
+			case "ProofGenerationError":
+				p := &ProofGenerationError{}
+				if err := p.Unmarshal(value); err != nil {
+					return err
+				}
+
+				ppError = p
+			case "TypeConversionError":
+				t := &TypeConversionError{}
+				if err := t.Unmarshal(value); err != nil {
+					return err
+				}
+
+				ppError = t
+			case "ProofVerificationError":
+				p := &ProofVerificationError{}
+				if err := p.Unmarshal(value); err != nil {
+					return err
+				}
+
+				ppError = p
+			default:
+				return fmt.Errorf("invalid error type: %s", key)
+			}
+		}
+
+		c.Status = InError
+		c.Error = ppError
+	default:
+		return errors.New("invalid status type")
+	}
+
+	return nil
+}
+
+// ClockConfiguration represents the configuration of the epoch clock
+// returned by the interop_GetEpochConfiguration RPC call
+type ClockConfiguration struct {
+	EpochDuration uint64 `json:"epoch_duration"`
+	GenesisBlock  uint64 `json:"genesis_block"`
+}
+
+func (c ClockConfiguration) String() string {
+	return fmt.Sprintf("EpochDuration: %d, GenesisBlock: %d", c.EpochDuration, c.GenesisBlock)
 }

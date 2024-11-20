@@ -1,6 +1,8 @@
 package aggsender
 
 import (
+	"fmt"
+
 	"github.com/0xPolygon/cdk/config/types"
 )
 
@@ -18,6 +20,27 @@ type Config struct {
 	AggsenderPrivateKey types.KeystoreFileConfig `mapstructure:"AggsenderPrivateKey"`
 	// URLRPCL2 is the URL of the L2 RPC node
 	URLRPCL2 string `mapstructure:"URLRPCL2"`
-	// SaveCertificatesToFiles is a flag which tells the AggSender to save the certificates to a file
-	SaveCertificatesToFiles bool `mapstructure:"SaveCertificatesToFiles"`
+	// BlockFinality indicates which finality follows AggLayer
+	BlockFinality string `jsonschema:"enum=LatestBlock, enum=SafeBlock, enum=PendingBlock, enum=FinalizedBlock, enum=EarliestBlock" mapstructure:"BlockFinality"` //nolint:lll
+	// EpochNotificationPercentage indicates the percentage of the epoch
+	// the AggSender should send the certificate
+	// 0 -> Begin
+	// 50 -> Middle
+	EpochNotificationPercentage uint `mapstructure:"EpochNotificationPercentage"`
+	// SaveCertificatesToFilesPath if != "" tells  the AggSender to save the certificates to a file in this path
+	SaveCertificatesToFilesPath string `mapstructure:"SaveCertificatesToFilesPath"`
+}
+
+// String returns a string representation of the Config
+func (c Config) String() string {
+	return "StoragePath: " + c.StoragePath + "\n" +
+		"AggLayerURL: " + c.AggLayerURL + "\n" +
+		"BlockGetInterval: " + c.BlockGetInterval.String() + "\n" +
+		"CheckSettledInterval: " + c.CheckSettledInterval.String() + "\n" +
+		"AggsenderPrivateKeyPath: " + c.AggsenderPrivateKey.Path + "\n" +
+		"AggsenderPrivateKeyPassword: " + c.AggsenderPrivateKey.Password + "\n" +
+		"URLRPCL2: " + c.URLRPCL2 + "\n" +
+		"BlockFinality: " + c.BlockFinality + "\n" +
+		"EpochNotificationPercentage: " + fmt.Sprintf("%d", c.EpochNotificationPercentage) + "\n" +
+		"SaveCertificatesToFilesPath: " + c.SaveCertificatesToFilesPath + "\n"
 }

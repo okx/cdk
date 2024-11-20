@@ -1,11 +1,16 @@
-PathRWData = "{{.path_rw_data}}/"
+PathRWData = "{{.zkevm_path_rw_data}}/"
 L1URL="{{.l1_rpc_url}}"
 L2URL="http://{{.l2_rpc_name}}{{.deployment_suffix}}:{{.zkevm_rpc_http_port}}"
 AggLayerURL="{{.agglayer_url}}"
 
 ForkId = {{.zkevm_rollup_fork_id}}
 IsValidiumMode = {{.is_cdk_validium}}
+
 {{if eq .zkevm_rollup_fork_id "12"}}
+ContractVersions = "banana"
+{{else if eq .zkevm_rollup_fork_id "13"}}
+# Doesn't look like this is needed at the moment, but soon perhaps?
+# ContractVersions = "durian"
 ContractVersions = "banana"
 {{else}}
 ContractVersions = "elderberry"
@@ -20,8 +25,6 @@ AggregatorPrivateKeyPassword  = "{{.zkevm_l2_keystore_password}}"
 SenderProofToL1Addr = "{{.zkevm_l2_agglayer_address}}"   
 polygonBridgeAddr = "{{.zkevm_bridge_address}}" 
 
-
-RPCURL = "http://{{.l2_rpc_name}}{{.deployment_suffix}}:{{.zkevm_rpc_http_port}}"
 WitnessURL = "http://{{.l2_rpc_name}}{{.deployment_suffix}}:{{.zkevm_rpc_http_port}}"
 
 
@@ -46,7 +49,10 @@ Outputs = ["stderr"]
 
 [Aggregator]
         Port = "{{.zkevm_aggregator_port}}"
-
+        RetryTime = "30s"
+        VerifyProofInterval = "10s"
+        GasOffset = 150000
+        SettlementBackend = "agglayer"
         [Aggregator.DB]
                 Name = "{{.aggregator_db.name}}"
                 User = "{{.aggregator_db.user}}"
@@ -57,4 +63,8 @@ Outputs = ["stderr"]
                 MaxConns = 200
        
 [AggSender]
-SequencerPrivateKey = {Path = "{{or .zkevm_l2_agglayer_keystore_file "/pk/sequencer.keystore"}}", Password = "{{.zkevm_l2_agglayer_keystore_password}}"}
+CertificateSendInterval = "1m"
+CheckSettledInterval = "5s"
+SaveCertificatesToFilesPath = "{{.zkevm_path_rw_data}}/"
+
+
