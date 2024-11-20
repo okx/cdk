@@ -70,6 +70,10 @@ build-go:
 build-docker: ## Builds a docker image with the cdk binary
 	docker build -t cdk -f ./Dockerfile .
 
+.PHONY: build-mock-signer
+build-mock-signer-docker:
+	docker build --progress=plain -t xlayer-signer -f ./signer/Dockerfile .
+
 .PHONY: build-docker-nc
 build-docker-nc: ## Builds a docker image with the cdk binary - but without build cache
 	docker build --no-cache=true -t cdk -f ./Dockerfile .
