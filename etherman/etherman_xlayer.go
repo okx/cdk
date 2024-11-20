@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/idataavailabilityprotocol"
-	polygonzkevm "github.com/0xPolygon/cdk-contracts-tooling/contracts/banana/polygonvalidiumetrog"
 	cdkcommon "github.com/0xPolygon/cdk/common"
 	"github.com/0xPolygon/cdk/etherman/config"
 	"github.com/0xPolygon/cdk/etherman/contracts"
@@ -86,9 +85,6 @@ type Client struct {
 	l1Cfg config.L1Config
 	cfg   config.Config
 	auth  map[common.Address]bind.TransactOpts // empty in case of read-only client
-
-	// X Layer fields
-	ZkEVM *polygonzkevm.Polygonvalidiumetrog
 }
 
 // NewClient creates a new etherman.
@@ -98,11 +94,6 @@ func NewClient(cfg config.Config, l1Config config.L1Config, commonConfig cdkcomm
 	if err != nil {
 		log.Errorf("error connecting to %s: %+v", cfg.EthermanConfig.URL, err)
 
-		return nil, err
-	}
-	zkevm, err := polygonzkevm.NewPolygonvalidiumetrog(l1Config.ZkEVMAddr, ethClient)
-	if err != nil {
-		log.Errorf("error creating Polygonzkevm client (%s). Error: %w", l1Config.ZkEVMAddr.String(), err)
 		return nil, err
 	}
 	L1chainID, err := ethClient.ChainID(context.Background())
@@ -140,8 +131,6 @@ func NewClient(cfg config.Config, l1Config config.L1Config, commonConfig cdkcomm
 		l1Cfg:    l1Config,
 		cfg:      cfg,
 		auth:     map[common.Address]bind.TransactOpts{},
-
-		ZkEVM: zkevm,
 	}
 
 	if commonConfig.IsValidiumMode {
@@ -497,9 +486,9 @@ func (etherMan *Client) GetL1InfoRoot(indexL1InfoRoot uint32) (common.Hash, erro
 
 // LoadAuthFromKeyStoreXLayer loads an authorization from a key store file
 func (etherMan *Client) LoadAuthFromKeyStoreXLayer(path, password string) (
-  *bind.TransactOpts, 
-  *ecdsa.PrivateKey, 
-  error,
+	*bind.TransactOpts,
+	*ecdsa.PrivateKey,
+	error,
 ) {
 	auth, pk, err := newAuthFromKeystoreXLayer(path, password, etherMan.l1Cfg.L1ChainID)
 	if err != nil {

@@ -63,7 +63,7 @@ func (etherMan *Client) sequenceMockBatches(opts bind.TransactOpts,
 		finalInputHash[i] = bb
 	}
 
-	tx, err = etherMan.ZkEVM.SequenceBatchesValidium(
+	tx, err = etherMan.Contracts.Banana.Rollup.SequenceBatchesValidium(
 		&opts,
 		validiumBatchData,
 		l1InfoTreeLeafCount,
