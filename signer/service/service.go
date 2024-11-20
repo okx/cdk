@@ -67,7 +67,7 @@ func NewServer(cfg *config.Config, ctx context.Context) *Server {
 	}
 
 	srv.l1Cfg = ethConfig.L1Config{
-		L1ChainID:                 cfg.L1.ChainId,
+		L1ChainID:                 cfg.L1.ChainID,
 		ZkEVMAddr:                 cfg.L1.PolygonZkEVMAddress,
 		PolAddr:                   cfg.L1.PolygonMaticAddress,
 		GlobalExitRootManagerAddr: cfg.L1.GlobalExitRootManagerAddr,
@@ -76,12 +76,19 @@ func NewServer(cfg *config.Config, ctx context.Context) *Server {
 
 	var err error
 	srv.ethClient, err = etherman.NewClient(srv.ethCfg, srv.l1Cfg, cdkcommon.Config{})
-	log.Infof("url: %v, l1 chain id: %v, zkevm addr: %v, rollup manager addr: %v", srv.ethCfg.URL, srv.l1Cfg.L1ChainID, srv.l1Cfg.ZkEVMAddr, srv.l1Cfg.RollupManagerAddr)
+	log.Infof("url: %v, l1 chain id: %v, zkevm addr: %v, rollup manager addr: %v",
+		srv.ethCfg.URL,
+		srv.l1Cfg.L1ChainID,
+		srv.l1Cfg.ZkEVMAddr,
+		srv.l1Cfg.RollupManagerAddr,
+	)
 	if err != nil {
 		log.Fatal("error creating etherman client. Error: %v", err)
 	}
 
-	_, srv.seqPrivateKey, err = srv.ethClient.LoadAuthFromKeyStoreXLayer(cfg.L1.SeqPrivateKey.Path, cfg.L1.SeqPrivateKey.Password)
+	_, srv.seqPrivateKey, err = srv.ethClient.LoadAuthFromKeyStoreXLayer(
+		cfg.L1.SeqPrivateKey.Path, cfg.L1.SeqPrivateKey.Password,
+	)
 	if err != nil {
 		log.Fatal("error loading sequencer private key. Error: %v", err)
 	}
@@ -89,7 +96,9 @@ func NewServer(cfg *config.Config, ctx context.Context) *Server {
 	srv.seqAddress = crypto.PubkeyToAddress(srv.seqPrivateKey.PublicKey)
 	log.Infof("Sequencer address: %s", srv.seqAddress.String())
 
-	_, srv.aggPrivateKey, err = srv.ethClient.LoadAuthFromKeyStoreXLayer(cfg.L1.AggPrivateKey.Path, cfg.L1.AggPrivateKey.Password)
+	_, srv.aggPrivateKey, err = srv.ethClient.LoadAuthFromKeyStoreXLayer(
+		cfg.L1.AggPrivateKey.Path, cfg.L1.AggPrivateKey.Password,
+	)
 	if err != nil {
 		log.Fatal("error loading aggregator private key. Error: %v", err)
 	}
@@ -132,32 +141,32 @@ func (s *Server) PostSignDataByOrderNo(w http.ResponseWriter, r *http.Request) {
 
 	log.Infof("Request:%v", requestData.String())
 
-	if value, ok := s.result[requestData.RefOrderId]; ok {
+	if value, ok := s.result[requestData.RefOrderID]; ok {
 		response.DetailMsg = "already exist"
-		log.Infof("already exist, key:%v, value:%v", requestData.RefOrderId, value)
+		log.Infof("already exist, key:%v, value:%v", requestData.RefOrderID, value)
 		sendJSONResponse(w, response)
 		return
 	}
 
 	if requestData.OperateType == operateTypeSeq {
-		err, data := s.signSeq(requestData)
+		data, err := s.signSeq(requestData)
 		if err != nil {
 			response.DetailMsg = err.Error()
 			log.Errorf("error signSeq: %v", err)
 		} else {
 			response.Code = codeSuccess
 			response.Success = true
-			s.result[requestData.RefOrderId] = data
+			s.result[requestData.RefOrderID] = data
 		}
 	} else if requestData.OperateType == operateTypeAgg {
-		err, data := s.signAgg(requestData)
+		data, err := s.signAgg(requestData)
 		if err != nil {
 			response.DetailMsg = err.Error()
 			log.Errorf("error signAgg: %v", err)
 		} else {
 			response.Code = codeSuccess
 			response.Success = true
-			s.result[requestData.RefOrderId] = data
+			s.result[requestData.RefOrderID] = data
 		}
 	} else {
 		log.Error("error operateType")
@@ -167,15 +176,15 @@ func (s *Server) PostSignDataByOrderNo(w http.ResponseWriter, r *http.Request) {
 }
 
 // signSeq is the handler for the /priapi/v1/assetonchain/ecology/ecologyOperate endpoint
-func (s *Server) signSeq(requestData Request) (error, string) {
+func (s *Server) signSeq(requestData Request) (string, error) {
 	var seqData SeqData
 	err := json.Unmarshal([]byte(requestData.OtherInfo), &seqData)
 	if err != nil {
 		log.Errorf("error Unmarshal: %v", err)
-		return err, ""
+		return "", err
 	}
 
-	var validiumBatchData []polygonzkevm.PolygonValidiumEtrogValidiumBatchData
+	validiumBatchData := []polygonzkevm.PolygonValidiumEtrogValidiumBatchData{}
 	for _, batch := range seqData.Batches {
 		validiumBatchData = append(validiumBatchData, polygonzkevm.PolygonValidiumEtrogValidiumBatchData{
 			TransactionsHash:     common.HexToHash(batch.TransactionsHash),
@@ -206,38 +215,37 @@ func (s *Server) signSeq(requestData Request) (error, string) {
 	)
 	if err != nil {
 		log.Errorf("error BuildSequenceBatchesTxData: %v", err)
-		return err, ""
+		return "", err
 	}
 	to := &seqData.ContractAddress
 
-	// return s.getTxData(s.seqAddress, to, data)
 	return s.getLegacyTxData(s.seqAddress, to, data, seqData.Nonce, seqData.GasLimit, seqData.GasPrice)
 }
 
 // signAgg is the handler for the /priapi/v1/assetonchain/ecology/ecologyOperate endpoint
-func (s *Server) signAgg(requestData Request) (error, string) {
+func (s *Server) signAgg(requestData Request) (string, error) {
 	var aggData AggData
 	err := json.Unmarshal([]byte(requestData.OtherInfo), &aggData)
 	if err != nil {
 		log.Errorf("error Unmarshal: %v", err)
-		return err, ""
+		return "", err
 	}
 
 	newLocal, err := hex.DecodeHex(aggData.NewLocalExitRoot)
 	if err != nil {
 		log.Errorf("error DecodeHex: %v", err)
-		return err, ""
+		return "", err
 	}
 
 	newStateRoot, err := hex.DecodeHex(aggData.NewStateRoot)
 	if err != nil {
 		log.Errorf("error DecodeHex: %v", err)
-		return err, ""
+		return "", err
 	}
 
 	if len(aggData.Proof) != proofLen {
 		log.Errorf("agg data len is not 24")
-		return fmt.Errorf("agg proof len is not 24"), ""
+		return "", fmt.Errorf("agg proof len is not 24")
 	}
 	proofStr := "0x"
 	for _, v := range aggData.Proof {
@@ -256,10 +264,12 @@ func (s *Server) signAgg(requestData Request) (error, string) {
 		FinalProof:       proof,
 	}
 
-	_, data, err := s.ethClient.BuildTrustedVerifyBatchesTxData(aggData.InitNumBatch, aggData.FinalNewBatch, inputs, aggData.Beneficiary)
+	_, data, err := s.ethClient.BuildTrustedVerifyBatchesTxData(
+		aggData.InitNumBatch, aggData.FinalNewBatch, inputs, aggData.Beneficiary,
+	)
 	if err != nil {
 		log.Errorf("error BuildTrustedVerifyBatchesTxData: %v", err)
-		return err, ""
+		return "", err
 	}
 
 	to := &aggData.ContractAddress
@@ -267,7 +277,13 @@ func (s *Server) signAgg(requestData Request) (error, string) {
 	return s.getLegacyTxData(s.aggAddress, to, data, aggData.Nonce, aggData.GasLimit, aggData.GasPrice)
 }
 
-func (s *Server) getLegacyTxData(from common.Address, to *common.Address, data []byte, nonce, gasLimit uint64, gasPrice string) (error, string) {
+func (s *Server) getLegacyTxData(
+	from common.Address,
+	to *common.Address,
+	data []byte,
+	nonce, gasLimit uint64,
+	gasPrice string,
+) (string, error) {
 	bigFloatGasPrice := new(big.Float)
 	bigFloatGasPrice, _ = bigFloatGasPrice.SetString(gasPrice)
 	result := new(big.Float).Mul(bigFloatGasPrice, new(big.Float).SetInt(big.NewInt(params.Ether)))
@@ -285,17 +301,17 @@ func (s *Server) getLegacyTxData(from common.Address, to *common.Address, data [
 	signedTx, err := s.ethClient.SignTx(s.ctx, from, tx)
 	if err != nil {
 		log.Errorf("error SignTx: %v", err)
-		return err, ""
+		return "", err
 	}
 
 	txBin, err := signedTx.MarshalBinary()
 	if err != nil {
 		log.Errorf("error MarshalBinary: %v", err)
-		return err, ""
+		return "", err
 	}
 
 	log.Infof("TxHash: %v", signedTx.Hash().String())
-	return nil, hex.EncodeToString(txBin)
+	return hex.EncodeToString(txBin), nil
 }
 
 // GetSignDataByOrderNo is the handler for the /priapi/v1/assetonchain/ecology/ecologyOperate endpoint

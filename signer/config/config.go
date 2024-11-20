@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"errors"
 	"path/filepath"
 	"strings"
 
@@ -20,7 +21,7 @@ const (
 
 // L1 is the default configuration values
 type L1 struct {
-	ChainId       uint64                   `mapstructure:"ChainId"`
+	ChainID       uint64                   `mapstructure:"ChainId"`
 	RPC           string                   `mapstructure:"RPC"`
 	SeqPrivateKey types.KeystoreFileConfig `mapstructure:"SeqPrivateKey"`
 	AggPrivateKey types.KeystoreFileConfig `mapstructure:"AggPrivateKey"`
@@ -78,8 +79,8 @@ func Load(ctx *cli.Context) (*Config, error) {
 	viper.SetEnvPrefix("ZKEVM_DATA_STREAMER")
 	err = viper.ReadInConfig()
 	if err != nil {
-		_, ok := err.(viper.ConfigFileNotFoundError)
-		if ok {
+		var fileNotFoundErr *viper.ConfigFileNotFoundError
+		if errors.As(err, fileNotFoundErr) {
 			log.Infof("config file not found")
 		} else {
 			log.Infof("error reading config file: ", err)
@@ -89,7 +90,8 @@ func Load(ctx *cli.Context) (*Config, error) {
 
 	decodeHooks := []viper.DecoderConfigOption{
 		// this allows arrays to be decoded from env var separated by ",", example: MY_VAR="value1,value2,value3"
-		viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(mapstructure.TextUnmarshallerHookFunc(), mapstructure.StringToSliceHookFunc(","))),
+		viper.DecodeHook(mapstructure.ComposeDecodeHookFunc(
+			mapstructure.TextUnmarshallerHookFunc(), mapstructure.StringToSliceHookFunc(","))),
 	}
 
 	err = viper.Unmarshal(&cfg, decodeHooks...)

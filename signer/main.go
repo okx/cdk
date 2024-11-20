@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	appName      = "xlayer-signer" //nolint:gosec
+	appName      = "xlayer-signer"
 	appUsage     = "xlayer signer tool"
 	timeout      = 5 * time.Second
 	httpGetPath  = "/priapi/v1/assetonchain/ecology/querySignDataByOrderNo"
@@ -41,7 +41,7 @@ func main() {
 			Name:    "http",
 			Aliases: []string{},
 			Usage:   "Generate stream file from scratch",
-			Action:  HttpService,
+			Action:  HTTPService,
 			Flags: []cli.Flag{
 				&configFileFlag,
 			},
@@ -55,8 +55,8 @@ func main() {
 	}
 }
 
-// HttpService is the entry point for the http service
-func HttpService(cliCtx *cli.Context) error {
+// HTTPService is the entry point for the http service
+func HTTPService(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
 		log.Errorf("Error: %v", err)

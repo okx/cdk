@@ -14,7 +14,7 @@ type Request struct {
 	OperateAddress string `json:"operateAddress"`
 	Symbol         int    `json:"symbol"`
 	ProjectSymbol  int    `json:"projectSymbol"`
-	RefOrderId     string `json:"refOrderId"`
+	RefOrderID     string `json:"refOrderId"`
 	OperateSymbol  int    `json:"operateSymbol"`
 	OperateAmount  int    `json:"operateAmount"`
 	SysFrom        int    `json:"sysFrom"`
@@ -58,7 +58,7 @@ type Batch struct {
 
 // AggData is the data for aggregate operation
 type AggData struct {
-	RollupId         uint64         `json:"rollupID"`
+	RollupID         uint64         `json:"rollupID"`
 	NewLocalExitRoot string         `json:"newLocalExitRoot"`
 	NewStateRoot     string         `json:"newStateRoot"`
 	FinalNewBatch    uint64         `json:"finalNewBatch"`

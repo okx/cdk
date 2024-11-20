@@ -93,7 +93,6 @@ type Client struct {
 
 // NewClient creates a new etherman.
 func NewClient(cfg config.Config, l1Config config.L1Config, commonConfig cdkcommon.Config) (*Client, error) {
-	log.Warnf("ETHMAN CONFIG = %s", cfg.EthermanConfig.URL)
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.EthermanConfig.URL)
 	if err != nil {
@@ -497,7 +496,11 @@ func (etherMan *Client) GetL1InfoRoot(indexL1InfoRoot uint32) (common.Hash, erro
 /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ X Layer ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ///
 
 // LoadAuthFromKeyStoreXLayer loads an authorization from a key store file
-func (etherMan *Client) LoadAuthFromKeyStoreXLayer(path, password string) (*bind.TransactOpts, *ecdsa.PrivateKey, error) {
+func (etherMan *Client) LoadAuthFromKeyStoreXLayer(path, password string) (
+  *bind.TransactOpts, 
+  *ecdsa.PrivateKey, 
+  error,
+) {
 	auth, pk, err := newAuthFromKeystoreXLayer(path, password, etherMan.l1Cfg.L1ChainID)
 	if err != nil {
 		return nil, nil, err
