@@ -9,11 +9,11 @@ RUN cd /src && go mod download
 # BUILD BINARY
 COPY . /src
 RUN cd /src/db && packr2
-RUN cd /src/signer && make build
+RUN cd /src/test/signer && make build
 
 # CONTAINER FOR RUNNING BINARY
 FROM alpine:3.18.0
-COPY --from=build /src/signer/dist/xlayer-signer /app/xlayer-signer
+COPY --from=build /src/test/signer/dist/xlayer-signer /app/xlayer-signer
 
 EXPOSE 7001
 CMD ["/bin/sh", "-c", "/app/xlayer-signer"]

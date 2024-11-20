@@ -17,7 +17,7 @@ import (
 	ethConfig "github.com/0xPolygon/cdk/etherman/config"
 	"github.com/0xPolygon/cdk/hex"
 	"github.com/0xPolygon/cdk/log"
-	"github.com/0xPolygon/cdk/signer/config"
+	"github.com/0xPolygon/cdk/test/signer/config"
 	zkEthman "github.com/0xPolygon/zkevm-ethtx-manager/etherman"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"

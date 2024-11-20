@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk/log"
-	"github.com/0xPolygon/cdk/signer/config"
-	"github.com/0xPolygon/cdk/signer/service"
+	"github.com/0xPolygon/cdk/test/signer/config"
+	"github.com/0xPolygon/cdk/test/signer/service"
 	"github.com/urfave/cli/v2"
 )
 

@@ -127,7 +127,7 @@ services:
     ports:
       - 7001:7001
     volumes:
-      - ../signer/signer.config.toml:/app/config.toml
+      - ../test/signer/signer.config.toml:/app/config.toml
       - ./sequencer.keystore:/pk/sequencer.keystore
       - ./aggregator.keystore:/pk/aggregator.keystore
     command:

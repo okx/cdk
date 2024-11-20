@@ -72,7 +72,7 @@ build-docker: ## Builds a docker image with the cdk binary
 
 .PHONY: build-mock-signer
 build-mock-signer-docker:
-	docker build --progress=plain -t xlayer-signer -f ./signer/Dockerfile .
+	docker build --progress=plain -t xlayer-signer -f ./test/signer/Dockerfile .
 
 .PHONY: build-docker-nc
 build-docker-nc: ## Builds a docker image with the cdk binary - but without build cache
