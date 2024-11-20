@@ -66,11 +66,11 @@ build-rust:
 build-go:
 	$(GOENVVARS) go build -ldflags "all=$(LDFLAGS)" -o $(GOBIN)/$(GOBINARY) $(GOCMD)
 
-.PHONY: build-docker
-build-docker: ## Builds a docker image with the cdk binary
+.PHONY: build-docker 
+build-docker: build-mock-signer-docker ## Builds a docker image with the cdk binary
 	docker build -t cdk -f ./Dockerfile .
 
-.PHONY: build-mock-signer
+.PHONY: build-mock-signer-docker
 build-mock-signer-docker:
 	docker build --progress=plain -t xlayer-signer -f ./test/signer/Dockerfile .
 
