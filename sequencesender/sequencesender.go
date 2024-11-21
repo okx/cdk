@@ -117,7 +117,12 @@ func New(cfg Config, logger *log.Logger,
 		Outputs:     cfg.Log.Outputs,
 	}
 
-	s.ethTxManager, err = ethtxmanager.New(cfg.EthTxManager)
+	if cfg.EthTxManager.CustodialAssets.Enable {
+		s.ethTxManager, err = ethtxmanager.NewClientFromAddr(cfg.EthTxManager, cfg.SenderAddress)
+	} else {
+		s.ethTxManager, err = ethtxmanager.New(cfg.EthTxManager)
+	}
+
 	if err != nil {
 		s.logger.Fatalf("error creating ethtxmanager client: %v", err)
 		return nil, err
