@@ -1,4 +1,13 @@
 {
+ "l1Config": {
+   "chainId": 11155111,
+   "polygonZkEVMAddress": "0x4fEB7975Bd1B62f7908911dd9cA16A39542B4d96",
+   "polygonZkEVMGlobalExitRootAddress": "0xFFD839e9Fa3d211c4Ff984FFAE50782a4852271a",
+   "polygonRollupManagerAddress": "0x5df4C57C6e7783d73CF0882A2bcDD5e42A3Dc854",
+   "polTokenAddress": "0xD8e648F54776f9ed213b43d15b59724125d00883"
+ },
+ "rollupCreationBlockNumber": 7101480,
+ "rollupManagerCreationBlockNumber": 7101475,
  "root": "0x516cd554758628f5a687e72e12c2f9630f9c0319b3576a70090d9cbaf44ebad7",
  "genesis": [
   {
