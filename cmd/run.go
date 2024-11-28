@@ -247,11 +247,16 @@ func createSequenceSender(
 		logger.Fatalf("Failed to create etherman. Err: %w, ", err)
 	}
 
-	auth, _, err := ethman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
-	if err != nil {
-		logger.Fatal(err)
+	// X Layer
+	if cfg.SequenceSender.EthTxManager.CustodialAssets.Enable {
+		cfg.SequenceSender.SenderAddress = cfg.SequenceSender.EthTxManager.CustodialAssets.SequencerAddr
+	} else {
+		auth, _, err := ethman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		cfg.SequenceSender.SenderAddress = auth.From
 	}
-	cfg.SequenceSender.SenderAddress = auth.From
 	blockFinalityType := etherman.BlockNumberFinality(cfg.SequenceSender.BlockFinality)
 
 	blockFinality, err := blockFinalityType.ToBlockNum()
