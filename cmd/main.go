@@ -15,6 +15,8 @@ const appName = "cdk"
 const (
 	// NETWORK_CONFIGFILE name to identify the network_custom (genesis) config-file
 	NETWORK_CONFIGFILE = "custom_network" //nolint:stylecheck
+
+	HealthzPort = 3000
 )
 
 var (
@@ -67,7 +69,7 @@ var (
 		Name:     "healthcheckPort",
 		Usage:    "Specify port for healthcheck. Default is 3000.",
 		Required: false,
-		Value:    3000,
+		Value:    HealthzPort,
 	}
 )
 
