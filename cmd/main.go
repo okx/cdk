@@ -62,6 +62,13 @@ var (
 		Usage:    "Allow that config-files contains deprecated fields",
 		Required: false,
 	}
+
+	healthcheckPort = cli.Uint64Flag{
+		Name:     "healthcheckPort",
+		Usage:    "Specify port for healthcheck. Default is 3000.",
+		Required: false,
+		Value:    3000,
+	}
 )
 
 func main() {
@@ -75,6 +82,7 @@ func main() {
 		&saveConfigFlag,
 		&disableDefaultConfigVars,
 		&allowDeprecatedFields,
+    &healthcheckPort,
 	}
 	app.Commands = []*cli.Command{
 		{

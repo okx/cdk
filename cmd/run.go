@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/big"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
@@ -137,6 +138,20 @@ func start(cliCtx *cli.Context) error {
 		}
 	}
 
+	// Once service component starts, enable health check.
+	go func() {
+		http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte("OK"))
+		})
+		port := cliCtx.Uint64("healthcheckPort")
+		log.Infof("Listening healthcheck on port %d\n", port)
+		if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
+			log.Errorf("Error listening on port = %v", err)
+			return
+		}
+	}()
+
+	// Blocking
 	waitSignal(nil)
 
 	return nil
