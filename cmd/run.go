@@ -240,18 +240,25 @@ func createSequenceSender(
 				ApiKey: cfg.SequenceSender.EthTxManager.Etherman.Etherscan.ApiKey,
 				Url:    cfg.SequenceSender.EthTxManager.Etherman.Etherscan.Url,
 			},
-			HTTPHeaders: cfg.SequenceSender.EthTxManager.Etherman.HTTPHeaders,
+			ZkEVMAddr:         cfg.SequenceSender.EthTxManager.Etherman.ZkEVMAddr,         // X Layer
+			RollupManagerAddr: cfg.SequenceSender.EthTxManager.Etherman.RollupManagerAddr, // X Layer
+			HTTPHeaders:       cfg.SequenceSender.EthTxManager.Etherman.HTTPHeaders,
 		},
 	}, cfg.NetworkConfig.L1Config, cfg.Common)
 	if err != nil {
 		logger.Fatalf("Failed to create etherman. Err: %w, ", err)
 	}
 
-	auth, _, err := ethman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
-	if err != nil {
-		logger.Fatal(err)
+	// X Layer
+	if cfg.SequenceSender.EthTxManager.CustodialAssets.Enable {
+		cfg.SequenceSender.SenderAddress = cfg.SequenceSender.EthTxManager.CustodialAssets.SequencerAddr
+	} else {
+		auth, _, err := ethman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
+		if err != nil {
+			logger.Fatal(err)
+		}
+		cfg.SequenceSender.SenderAddress = auth.From
 	}
-	cfg.SequenceSender.SenderAddress = auth.From
 	blockFinalityType := etherman.BlockNumberFinality(cfg.SequenceSender.BlockFinality)
 
 	blockFinality, err := blockFinalityType.ToBlockNum()
