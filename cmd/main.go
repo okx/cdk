@@ -82,7 +82,7 @@ func main() {
 		&saveConfigFlag,
 		&disableDefaultConfigVars,
 		&allowDeprecatedFields,
-    &healthcheckPort,
+		&healthcheckPort,
 	}
 	app.Commands = []*cli.Command{
 		{
