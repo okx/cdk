@@ -5,9 +5,11 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/big"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
+	"time"
 
 	zkevm "github.com/0xPolygon/cdk"
 	dataCommitteeClient "github.com/0xPolygon/cdk-data-availability/client"
@@ -137,6 +139,25 @@ func start(cliCtx *cli.Context) error {
 		}
 	}
 
+	// Once service component starts, enable health check.
+	go func() {
+		const timeout = 3 * time.Second
+		http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte("OK"))
+		})
+		port := cliCtx.Uint64("healthcheckPort")
+		log.Infof("Listening healthcheck on port %d\n", port)
+		srv := http.Server{
+			Addr:              fmt.Sprintf(":%d", port),
+			ReadHeaderTimeout: timeout,
+		}
+		if err := srv.ListenAndServe(); err != nil {
+			log.Errorf("Error listening on port = %v", err)
+			return
+		}
+	}()
+
+	// Blocking
 	waitSignal(nil)
 
 	return nil
