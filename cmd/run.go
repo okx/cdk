@@ -253,7 +253,9 @@ func createSequenceSender(
 	if cfg.SequenceSender.EthTxManager.CustodialAssets.Enable {
 		cfg.SequenceSender.SenderAddress = cfg.SequenceSender.EthTxManager.CustodialAssets.SequencerAddr
 	} else {
-		auth, _, err := ethman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
+		auth, _, err := ethman.LoadAuthFromKeyStore(
+			cfg.SequenceSender.PrivateKey.Path,
+			cfg.SequenceSender.PrivateKey.Password)
 		if err != nil {
 			logger.Fatal(err)
 		}
