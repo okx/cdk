@@ -15,6 +15,8 @@ const appName = "cdk"
 const (
 	// NETWORK_CONFIGFILE name to identify the network_custom (genesis) config-file
 	NETWORK_CONFIGFILE = "custom_network" //nolint:stylecheck
+
+	HealthzPort = 3000
 )
 
 var (
@@ -62,6 +64,13 @@ var (
 		Usage:    "Allow that config-files contains deprecated fields",
 		Required: false,
 	}
+
+	healthcheckPort = cli.Uint64Flag{
+		Name:     "healthcheckPort",
+		Usage:    "Specify port for healthcheck. Default is 3000.",
+		Required: false,
+		Value:    HealthzPort,
+	}
 )
 
 func main() {
@@ -75,6 +84,7 @@ func main() {
 		&saveConfigFlag,
 		&disableDefaultConfigVars,
 		&allowDeprecatedFields,
+		&healthcheckPort,
 	}
 	app.Commands = []*cli.Command{
 		{

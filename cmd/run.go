@@ -5,9 +5,11 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/big"
+	"net/http"
 	"os"
 	"os/signal"
 	"runtime"
+	"time"
 
 	zkevm "github.com/0xPolygon/cdk"
 	dataCommitteeClient "github.com/0xPolygon/cdk-data-availability/client"
@@ -34,15 +36,12 @@ import (
 	"github.com/0xPolygon/cdk/rpc"
 	"github.com/0xPolygon/cdk/sequencesender"
 	"github.com/0xPolygon/cdk/sequencesender/txbuilder"
-	"github.com/0xPolygon/cdk/state"
-	"github.com/0xPolygon/cdk/state/pgstatestorage"
 	"github.com/0xPolygon/cdk/translator"
 	ethtxman "github.com/0xPolygon/zkevm-ethtx-manager/etherman"
 	"github.com/0xPolygon/zkevm-ethtx-manager/etherman/etherscan"
 	"github.com/0xPolygon/zkevm-ethtx-manager/ethtxmanager"
 	ethtxlog "github.com/0xPolygon/zkevm-ethtx-manager/log"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
 )
 
@@ -137,6 +136,25 @@ func start(cliCtx *cli.Context) error {
 		}
 	}
 
+	// Once service component starts, enable health check.
+	go func() {
+		const timeout = 3 * time.Second
+		http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte("OK"))
+		})
+		port := cliCtx.Uint64("healthcheckPort")
+		log.Infof("Listening healthcheck on port %d\n", port)
+		srv := http.Server{
+			Addr:              fmt.Sprintf(":%d", port),
+			ReadHeaderTimeout: timeout,
+		}
+		if err := srv.ListenAndServe(); err != nil {
+			log.Errorf("Error listening on port = %v", err)
+			return
+		}
+	}()
+
+	// Blocking
 	waitSignal(nil)
 
 	return nil
@@ -180,17 +198,8 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 	logger := log.WithFields("module", cdkcommon.AGGREGATOR)
 	// Migrations
 	if runMigrations {
-		logger.Infof(
-			"Running DB migrations host: %s:%s db:%s user:%s",
-			c.Aggregator.DB.Host, c.Aggregator.DB.Port, c.Aggregator.DB.Name, c.Aggregator.DB.User,
-		)
-		runAggregatorMigrations(c.Aggregator.DB)
-	}
-
-	// DB
-	stateSQLDB, err := db.NewSQLDB(logger, c.Aggregator.DB)
-	if err != nil {
-		logger.Fatal(err)
+		logger.Infof("Running DB migrations. File %s", c.Aggregator.DBPath)
+		runAggregatorMigrations(c.Aggregator.DBPath)
 	}
 
 	etherman, err := newEtherman(c)
@@ -209,9 +218,7 @@ func createAggregator(ctx context.Context, c config.Config, runMigrations bool) 
 		c.Aggregator.ChainID = l2ChainID
 	}
 
-	st := newState(&c, c.Aggregator.ChainID, stateSQLDB)
-
-	aggregator, err := aggregator.New(ctx, c.Aggregator, logger, st, etherman)
+	aggregator, err := aggregator.New(ctx, c.Aggregator, logger, etherman)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -441,13 +448,13 @@ func newDataAvailability(c config.Config, etherman *etherman.Client) (*dataavail
 	return dataavailability.New(daBackend)
 }
 
-func runAggregatorMigrations(c db.Config) {
-	runMigrations(c, db.AggregatorMigrationName)
+func runAggregatorMigrations(dbPath string) {
+	runMigrations(dbPath, db.AggregatorMigrationName)
 }
 
-func runMigrations(c db.Config, name string) {
+func runMigrations(dbPath string, name string) {
 	log.Infof("running migrations for %v", name)
-	err := db.RunMigrationsUp(c, name)
+	err := db.RunMigrationsUp(dbPath, name)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -493,19 +500,6 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 	}
 }
 
-func newState(c *config.Config, l2ChainID uint64, sqlDB *pgxpool.Pool) *state.State {
-	stateCfg := state.Config{
-		DB:      c.Aggregator.DB,
-		ChainID: l2ChainID,
-	}
-
-	stateDB := pgstatestorage.NewPostgresStorage(stateCfg, sqlDB)
-
-	st := state.NewState(stateCfg, stateDB)
-
-	return st
-}
-
 func newReorgDetector(
 	cfg *reorgdetector.Config,
 	client *ethclient.Client,
@@ -538,7 +532,7 @@ func runL1InfoTreeSyncerIfNeeded(
 	reorgDetector *reorgdetector.ReorgDetector,
 ) *l1infotreesync.L1InfoTreeSync {
 	if !isNeeded([]string{cdkcommon.AGGORACLE, cdkcommon.RPC,
-		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGSENDER}, components) {
+		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGSENDER, cdkcommon.L1INFOTREESYNC}, components) {
 		return nil
 	}
 	l1InfoTreeSync, err := l1infotreesync.New(
@@ -569,6 +563,7 @@ func runL1ClientIfNeeded(components []string, urlRPCL1 string) *ethclient.Client
 		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
 		cdkcommon.AGGORACLE, cdkcommon.RPC,
 		cdkcommon.AGGSENDER,
+		cdkcommon.L1INFOTREESYNC,
 	}, components) {
 		return nil
 	}
@@ -603,7 +598,8 @@ func runReorgDetectorL1IfNeeded(
 ) (*reorgdetector.ReorgDetector, chan error) {
 	if !isNeeded([]string{
 		cdkcommon.SEQUENCE_SENDER, cdkcommon.AGGREGATOR,
-		cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.AGGSENDER},
+		cdkcommon.AGGORACLE, cdkcommon.RPC, cdkcommon.AGGSENDER,
+		cdkcommon.L1INFOTREESYNC},
 		components) {
 		return nil, nil
 	}
