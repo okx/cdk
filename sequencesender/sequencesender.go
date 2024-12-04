@@ -117,6 +117,7 @@ func New(cfg Config, logger *log.Logger,
 		Outputs:     cfg.Log.Outputs,
 	}
 
+	// X Layer custodial assets
 	if cfg.EthTxManager.CustodialAssets.Enable {
 		s.ethTxManager, err = ethtxmanager.NewClientFromAddr(cfg.EthTxManager, cfg.SenderAddress)
 	} else {
