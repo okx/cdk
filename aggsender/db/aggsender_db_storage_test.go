@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk/agglayer"
-	"github.com/0xPolygon/cdk/aggsender/db/migrations"
 	"github.com/0xPolygon/cdk/aggsender/types"
 	"github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/log"
@@ -22,9 +21,12 @@ func Test_Storage(t *testing.T) {
 
 	path := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	log.Debugf("sqlite path: %s", path)
-	require.NoError(t, migrations.RunMigrations(path))
+	cfg := AggSenderSQLStorageConfig{
+		DBPath:                  path,
+		KeepCertificatesHistory: true,
+	}
 
-	storage, err := NewAggSenderSQLStorage(log.WithFields("aggsender-db"), path)
+	storage, err := NewAggSenderSQLStorage(log.WithFields("aggsender-db"), cfg)
 	require.NoError(t, err)
 
 	updateTime := time.Now().UTC().UnixMilli()
@@ -45,7 +47,7 @@ func Test_Storage(t *testing.T) {
 		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.NoError(t, err)
 
-		require.Equal(t, certificate, certificateFromDB)
+		require.Equal(t, certificate, *certificateFromDB)
 		require.NoError(t, storage.clean())
 	})
 
@@ -66,7 +68,7 @@ func Test_Storage(t *testing.T) {
 
 		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.ErrorIs(t, err, db.ErrNotFound)
-		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
+		require.Nil(t, certificateFromDB)
 		require.NoError(t, storage.clean())
 	})
 
@@ -74,7 +76,7 @@ func Test_Storage(t *testing.T) {
 		// try getting a certificate that doesn't exist
 		certificateFromDB, err := storage.GetLastSentCertificate()
 		require.NoError(t, err)
-		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
+		require.Nil(t, certificateFromDB)
 
 		// try getting a certificate that exists
 		certificate := types.CertificateInfo{
@@ -91,8 +93,8 @@ func Test_Storage(t *testing.T) {
 
 		certificateFromDB, err = storage.GetLastSentCertificate()
 		require.NoError(t, err)
-
-		require.Equal(t, certificate, certificateFromDB)
+		require.NotNil(t, certificateFromDB)
+		require.Equal(t, certificate, *certificateFromDB)
 		require.NoError(t, storage.clean())
 	})
 
@@ -100,12 +102,12 @@ func Test_Storage(t *testing.T) {
 		// try getting height 0
 		certificateFromDB, err := storage.GetCertificateByHeight(0)
 		require.NoError(t, err)
-		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
+		require.Nil(t, certificateFromDB)
 
 		// try getting a certificate that doesn't exist
 		certificateFromDB, err = storage.GetCertificateByHeight(4)
 		require.ErrorIs(t, err, db.ErrNotFound)
-		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
+		require.Nil(t, certificateFromDB)
 
 		// try getting a certificate that exists
 		certificate := types.CertificateInfo{
@@ -122,8 +124,8 @@ func Test_Storage(t *testing.T) {
 
 		certificateFromDB, err = storage.GetCertificateByHeight(certificate.Height)
 		require.NoError(t, err)
-
-		require.Equal(t, certificate, certificateFromDB)
+		require.NotNil(t, certificateFromDB)
+		require.Equal(t, certificate, *certificateFromDB)
 		require.NoError(t, storage.clean())
 	})
 
@@ -201,6 +203,7 @@ func Test_Storage(t *testing.T) {
 		// Insert a certificate
 		certificate := types.CertificateInfo{
 			Height:           13,
+			RetryCount:       1234,
 			CertificateID:    common.HexToHash("0xD"),
 			NewLocalExitRoot: common.HexToHash("0xE"),
 			FromBlock:        13,
@@ -213,12 +216,14 @@ func Test_Storage(t *testing.T) {
 
 		// Update the status of the certificate
 		certificate.Status = agglayer.Settled
-		require.NoError(t, storage.UpdateCertificateStatus(ctx, certificate))
+		certificate.UpdatedAt = updateTime + 1
+		require.NoError(t, storage.UpdateCertificate(ctx, certificate))
 
 		// Fetch the certificate and verify the status has been updated
 		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.NoError(t, err)
-		require.Equal(t, certificate.Status, certificateFromDB.Status)
+		require.Equal(t, certificate.Status, certificateFromDB.Status, "equal status")
+		require.Equal(t, certificate.UpdatedAt, certificateFromDB.UpdatedAt, "equal updated at")
 
 		require.NoError(t, storage.clean())
 	})
@@ -229,9 +234,12 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 
 	path := path.Join(t.TempDir(), "file::memory:?cache=shared")
 	log.Debugf("sqlite path: %s", path)
-	require.NoError(t, migrations.RunMigrations(path))
+	cfg := AggSenderSQLStorageConfig{
+		DBPath:                  path,
+		KeepCertificatesHistory: true,
+	}
 
-	storage, err := NewAggSenderSQLStorage(log.WithFields("aggsender-db"), path)
+	storage, err := NewAggSenderSQLStorage(log.WithFields("aggsender-db"), cfg)
 	require.NoError(t, err)
 
 	updateTime := time.Now().UTC().UnixMilli()
@@ -251,7 +259,7 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 
 		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.NoError(t, err)
-		require.Equal(t, certificate, certificateFromDB)
+		require.Equal(t, certificate, *certificateFromDB)
 		require.NoError(t, storage.clean())
 	})
 
@@ -281,7 +289,7 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 
 		certificateFromDB, err := storage.GetCertificateByHeight(updatedCertificate.Height)
 		require.NoError(t, err)
-		require.Equal(t, updatedCertificate, certificateFromDB)
+		require.Equal(t, updatedCertificate, *certificateFromDB)
 		require.NoError(t, storage.clean())
 	})
 
@@ -310,7 +318,7 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 
 		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.ErrorIs(t, err, db.ErrNotFound)
-		require.Equal(t, types.CertificateInfo{}, certificateFromDB)
+		require.Nil(t, certificateFromDB)
 		require.NoError(t, storage.clean())
 	})
 
@@ -362,9 +370,50 @@ func Test_SaveLastSentCertificate(t *testing.T) {
 
 		certificateFromDB, err := storage.GetCertificateByHeight(certificate.Height)
 		require.NoError(t, err)
-		require.Equal(t, certificate, certificateFromDB)
+		require.Equal(t, certificate, *certificateFromDB)
 		require.Equal(t, raw, []byte(certificateFromDB.SignedCertificate))
 
 		require.NoError(t, storage.clean())
 	})
+}
+
+func Test_StoragePreviousLER(t *testing.T) {
+	ctx := context.TODO()
+	dbPath := path.Join(t.TempDir(), "Test_StoragePreviousLER.sqlite")
+	cfg := AggSenderSQLStorageConfig{
+		DBPath:                  dbPath,
+		KeepCertificatesHistory: true,
+	}
+	storage, err := NewAggSenderSQLStorage(log.WithFields("aggsender-db"), cfg)
+	require.NoError(t, err)
+	require.NotNil(t, storage)
+
+	certNoLER := types.CertificateInfo{
+		Height:           0,
+		CertificateID:    common.HexToHash("0x1"),
+		Status:           agglayer.InError,
+		NewLocalExitRoot: common.HexToHash("0x2"),
+	}
+	err = storage.SaveLastSentCertificate(ctx, certNoLER)
+	require.NoError(t, err)
+
+	readCertNoLER, err := storage.GetCertificateByHeight(0)
+	require.NoError(t, err)
+	require.NotNil(t, readCertNoLER)
+	require.Equal(t, certNoLER, *readCertNoLER)
+
+	certLER := types.CertificateInfo{
+		Height:                1,
+		CertificateID:         common.HexToHash("0x2"),
+		Status:                agglayer.InError,
+		NewLocalExitRoot:      common.HexToHash("0x2"),
+		PreviousLocalExitRoot: &common.Hash{},
+	}
+	err = storage.SaveLastSentCertificate(ctx, certLER)
+	require.NoError(t, err)
+
+	readCertWithLER, err := storage.GetCertificateByHeight(1)
+	require.NoError(t, err)
+	require.NotNil(t, readCertWithLER)
+	require.Equal(t, certLER, *readCertWithLER)
 }
