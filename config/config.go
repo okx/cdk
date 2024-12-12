@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/0xPolygon/cdk/db"
 	"os"
 	"strings"
 
@@ -165,6 +166,8 @@ type Config struct {
 
 	// AggSender is the configuration of the agg sender service
 	AggSender aggsender.Config
+
+	Sqlite db.Config
 }
 
 // Load loads the configuration

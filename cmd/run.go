@@ -26,6 +26,7 @@ import (
 	"github.com/0xPolygon/cdk/config"
 	"github.com/0xPolygon/cdk/dataavailability"
 	"github.com/0xPolygon/cdk/dataavailability/datacommittee"
+	sqldb "github.com/0xPolygon/cdk/db"
 	"github.com/0xPolygon/cdk/etherman"
 	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
 	"github.com/0xPolygon/cdk/etherman/contracts"
@@ -84,6 +85,8 @@ func start(cliCtx *cli.Context) error {
 	lastGERSync := runLastGERSyncIfNeeded(
 		cliCtx.Context, components, c.LastGERSync, reorgDetectorL2, l2Client, l1InfoTreeSync,
 	)
+
+	runSqliteServiceIfNeeded(components, *c)
 
 	for _, component := range components {
 		switch component {
@@ -811,4 +814,42 @@ func getL2RPCUrl(c *config.Config) string {
 	}
 
 	return c.AggOracle.EVMSender.URLRPCL2
+}
+
+func runSqliteServiceIfNeeded(
+	components []string,
+	cfg config.Config,
+) {
+	dbPath := make(map[string]string)
+	if isNeeded([]string{
+		cdkcommon.AGGREGATOR},
+		components) {
+		dbPath[sqldb.AGG_TX_MGR] = cfg.Aggregator.EthTxManager.StoragePath
+		dbPath[sqldb.AGG_SYNC] = cfg.Aggregator.Synchronizer.SQLDB.DataSource
+		dbPath[sqldb.AGG_REORG_L1] = cfg.ReorgDetectorL1.DBPath
+	} else if isNeeded([]string{
+		cdkcommon.SEQUENCE_SENDER},
+		components) {
+		dbPath[sqldb.SEQS_TX_MGR] = cfg.SequenceSender.EthTxManager.StoragePath
+		dbPath[sqldb.SEQS_L1_TREE] = cfg.L1InfoTreeSync.DBPath
+		dbPath[sqldb.SEQS_REORG_L1] = cfg.ReorgDetectorL1.DBPath
+	} else {
+		log.Warn("No need to start sqlite service")
+		return
+	}
+
+	allDBPath := ""
+	for dbPathKey, dbPathValue := range dbPath {
+		allDBPath += fmt.Sprintf("%s=%s \n", dbPathKey, dbPathValue)
+	}
+
+	server := sqldb.CreateSqliteService(cfg.Sqlite, dbPath)
+	log.Info(fmt.Sprintf("Starting sqlite service on %s:%d\n%v", cfg.Sqlite.Host, cfg.Sqlite.Port, allDBPath))
+	go func() {
+		if err := server.Start(); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	return
 }
