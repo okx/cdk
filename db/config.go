@@ -18,5 +18,7 @@ type Config struct {
 	// check net/http.server.WriteTimeout
 	WriteTimeout types.Duration `mapstructure:"WriteTimeout"`
 
+	MaxRequestsPerIPAndSecond float64 `mapstructure:"MaxRequestsPerIPAndSecond"`
+
 	AuthMethodList string `mapstructure:"AuthMethodList"`
 }

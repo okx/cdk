@@ -844,7 +844,7 @@ func runSqliteServiceIfNeeded(
 	}
 
 	server := sqldb.CreateSqliteService(cfg.Sqlite, dbPath)
-	log.Info(fmt.Sprintf("Starting sqlite service on %s:%d\n%v", cfg.Sqlite.Host, cfg.Sqlite.Port, allDBPath))
+	log.Info(fmt.Sprintf("Starting sqlite service on %s:%d,max:%v,\n%v", cfg.Sqlite.Host, cfg.Sqlite.Port, cfg.Sqlite.MaxRequestsPerIPAndSecond, allDBPath))
 	go func() {
 		if err := server.Start(); err != nil {
 			log.Fatal(err)
