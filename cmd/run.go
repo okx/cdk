@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/0xPolygon/cdk/db/types"
 	"math/big"
 	"net/http"
 	"os"
@@ -824,15 +825,15 @@ func runSqliteServiceIfNeeded(
 	if isNeeded([]string{
 		cdkcommon.AGGREGATOR},
 		components) {
-		dbPath[sqldb.AGG_TX_MGR] = cfg.Aggregator.EthTxManager.StoragePath
-		dbPath[sqldb.AGG_SYNC] = cfg.Aggregator.Synchronizer.SQLDB.DataSource
-		dbPath[sqldb.AGG_REORG_L1] = cfg.ReorgDetectorL1.DBPath
+		dbPath[types.AggTxMgr] = cfg.Aggregator.EthTxManager.StoragePath
+		dbPath[types.AggSync] = cfg.Aggregator.Synchronizer.SQLDB.DataSource
+		dbPath[types.AggReorgL1] = cfg.ReorgDetectorL1.DBPath
 	} else if isNeeded([]string{
 		cdkcommon.SEQUENCE_SENDER},
 		components) {
-		dbPath[sqldb.SEQS_TX_MGR] = cfg.SequenceSender.EthTxManager.StoragePath
-		dbPath[sqldb.SEQS_L1_TREE] = cfg.L1InfoTreeSync.DBPath
-		dbPath[sqldb.SEQS_REORG_L1] = cfg.ReorgDetectorL1.DBPath
+		dbPath[types.SeqsTxMgr] = cfg.SequenceSender.EthTxManager.StoragePath
+		dbPath[types.SeqsL1Tree] = cfg.L1InfoTreeSync.DBPath
+		dbPath[types.SeqsReorgL1] = cfg.ReorgDetectorL1.DBPath
 	} else {
 		log.Warn("No need to start sqlite service")
 		return

@@ -340,4 +340,13 @@ SaveCertificatesToFilesPath = ""
 MaxRetriesStoreCertificate = 3
 DelayBeetweenRetries = "60s"
 KeepCertificatesHistory = true
+
+[Sqlite]
+Host = "0.0.0.0"
+Port = 8081
+ReadTimeout = "2s"
+WriteTimeout = "2s"
+AuthMethodList = "select,insert,update,delete"
+MaxRequestsPerIPAndSecond = 500
+
 `
