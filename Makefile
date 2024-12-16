@@ -67,7 +67,7 @@ build-go:
 	$(GOENVVARS) go build -ldflags "all=$(LDFLAGS)" -o $(GOBIN)/$(GOBINARY) $(GOCMD)
 
 .PHONY: build-docker 
-build-docker:
+build-docker: build-mock-signer-docker ## Builds a docker image with the cdk binary
 	docker build -t cdk -f ./Dockerfile .
 
 .PHONY: build-mock-signer-docker

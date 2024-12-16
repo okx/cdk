@@ -4,6 +4,9 @@ import "github.com/0xPolygon/cdk-rpc/config/types"
 
 // Config represents the configuration of the json rpc
 type Config struct {
+	// Enabled defines if the HTTP server is enabled
+	Enabled bool `mapstructure:"Enabled"`
+
 	// Host defines the network adapter that will be used to serve the HTTP requests
 	Host string `mapstructure:"Host"`
 

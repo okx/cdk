@@ -2,12 +2,12 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"database/sql"
 	"github.com/0xPolygon/cdk-rpc/rpc"
 	"github.com/0xPolygon/cdk/db/types"
 	"github.com/0xPolygon/cdk/log"
@@ -35,17 +35,15 @@ func CreateSqliteService(
 	for _, s := range methodList {
 		methodList = append(methodList, s)
 	}
-	log.Info(fmt.Sprintf("Sqlite service dbMaps: %v", dbMaps))
 	sqlDBs := make(map[string]*sql.DB)
 	for k, dbPath := range dbMaps {
-		log.Info(fmt.Sprintf("Sqlite service: %s, %s", k, dbPath))
+		log.Info(fmt.Sprintf("Sqlite service load db: %s, %s", k, dbPath))
 		db, err := NewSQLiteDB(dbPath)
 		if err != nil {
 			log.Fatal(err)
 		}
 		sqlDBs[k] = db
 	}
-	log.Info(fmt.Sprintf("Sqlite service sqlDBs sucess %v", sqlDBs))
 
 	services := []rpc.Service{
 		{
@@ -74,7 +72,7 @@ func (b *SqliteEndpoints) Select(
 	dbName string,
 	sqlCmd string,
 ) (interface{}, rpc.Error) {
-	err, dbCon := b.checkAndGetDB(dbName, sqlCmd, types.MethodSelect)
+	dbCon, err := b.checkAndGetDB(dbName, sqlCmd, types.MethodSelect)
 	if err != nil {
 		return types.ZeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("check params invalid: %s", err.Error()))
 	}
@@ -89,7 +87,7 @@ func (b *SqliteEndpoints) Select(
 		return nil, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to query: %s", err.Error()))
 	}
 
-	err, result := getResults(rows)
+	result, err := getResults(rows)
 	if err != nil {
 		return nil, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get results: %s", err.Error()))
 	}
@@ -124,7 +122,7 @@ func (b *SqliteEndpoints) alterMethod(
 	sql string,
 ) (interface{}, rpc.Error) {
 	log.Info(fmt.Sprintf("Sqlite: %s, %s", db, sql))
-	err, dbCon := b.checkAndGetDB(db, sql, method)
+	dbCon, err := b.checkAndGetDB(db, sql, method)
 	if err != nil {
 		return types.ZeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("check params invalid: %s", err.Error()))
 	}
@@ -174,7 +172,7 @@ func (b *SqliteEndpoints) GetDbs() (interface{}, rpc.Error) {
 	for k, dbPath := range b.dbMaps {
 		log.Info(fmt.Sprintf("Sqlite service: %s, %s", k, dbPath))
 		sqlCmd := "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name;"
-		err, dbCon := b.checkAndGetDB(k, sqlCmd, types.MethodSelect)
+		dbCon, err := b.checkAndGetDB(k, sqlCmd, types.MethodSelect)
 		if err != nil {
 			return types.ZeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("%s", err.Error()))
 		}
@@ -187,7 +185,7 @@ func (b *SqliteEndpoints) GetDbs() (interface{}, rpc.Error) {
 			return nil, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to query: %s", err.Error()))
 		}
 
-		err, result := getTables(rows)
+		result, err := getTables(rows)
 		if err != nil {
 			return nil, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get results: %s", err.Error()))
 		}
@@ -197,14 +195,14 @@ func (b *SqliteEndpoints) GetDbs() (interface{}, rpc.Error) {
 	return dbList, nil
 }
 
-func (b *SqliteEndpoints) checkAndGetDB(db string, sql string, method string) (error, *sql.DB) {
+func (b *SqliteEndpoints) checkAndGetDB(db string, sql string, method string) (*sql.DB, error) {
 	log.Info(fmt.Sprintf("Sqlite check db:%v, sql:%v, method:%v", db, sql, method))
-	if len(sql) <= types.LimitSqlLen {
-		return fmt.Errorf("sql length is too short"), nil
+	if len(sql) <= types.LimitSQLLen {
+		return nil, fmt.Errorf("sql length is too short")
 	}
 	sqlMethod := strings.ToLower(sql[:6])
 	if sqlMethod != method {
-		return fmt.Errorf("sql method is not valid"), nil
+		return nil, fmt.Errorf("sql method is not valid")
 	}
 	found := false
 	for _, str := range b.authMethods {
@@ -214,21 +212,21 @@ func (b *SqliteEndpoints) checkAndGetDB(db string, sql string, method string) (e
 		}
 	}
 	if !found {
-		return fmt.Errorf("sql method is not authorized"), nil
+		return nil, fmt.Errorf("sql method is not authorized")
 	}
 	dbCon, ok := b.sqlDBs[db]
 	if !ok {
-		return fmt.Errorf("sql db is not valid"), nil
+		return nil, fmt.Errorf("sql db is not valid")
 	}
-	return nil, dbCon
+	return dbCon, nil
 }
 
-func getResults(rows *sql.Rows) (error, []types.QueryData) {
+func getResults(rows *sql.Rows) ([]types.QueryData, error) {
 	var result []types.QueryData
 	columns, err := rows.Columns()
 	if err != nil {
 		log.Error(fmt.Sprintf("Failed to get columns: %v", err))
-		return err, nil
+		return nil, err
 	}
 	for rows.Next() {
 		record := types.QueryData{Fields: make(map[string]interface{})}
@@ -239,25 +237,25 @@ func getResults(rows *sql.Rows) (error, []types.QueryData) {
 		}
 		if err := rows.Scan(valuePtrs...); err != nil {
 			log.Error("Failed to scan row: %v", err)
-			return err, nil
+			return nil, err
 		}
 		for i, colName := range columns {
 			record.Fields[colName] = values[i]
 		}
 		result = append(result, record)
 	}
-	return nil, result
+	return result, nil
 }
 
-func getTables(rows *sql.Rows) (error, []string) {
+func getTables(rows *sql.Rows) ([]string, error) {
 	var result []string
 	for rows.Next() {
 		var tableName string
 		if err := rows.Scan(&tableName); err != nil {
-			return err, nil
+			return nil, err
 		}
 		log.Info(fmt.Sprintf("Table name: %s", tableName))
 		result = append(result, tableName)
 	}
-	return nil, result
+	return result, nil
 }

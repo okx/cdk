@@ -12,7 +12,7 @@ const (
 	MethodUpdate = "update"
 	MethodDelete = "delete"
 
-	LimitSqlLen = 6
+	LimitSQLLen = 6
 
 	ZeroHex = "0x0"
 

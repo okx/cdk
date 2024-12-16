@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/0xPolygon/cdk/db/types"
 	"math/big"
 	"net/http"
 	"os"
@@ -28,6 +27,7 @@ import (
 	"github.com/0xPolygon/cdk/dataavailability"
 	"github.com/0xPolygon/cdk/dataavailability/datacommittee"
 	sqldb "github.com/0xPolygon/cdk/db"
+	"github.com/0xPolygon/cdk/db/types"
 	"github.com/0xPolygon/cdk/etherman"
 	ethermanconfig "github.com/0xPolygon/cdk/etherman/config"
 	"github.com/0xPolygon/cdk/etherman/contracts"
@@ -821,6 +821,11 @@ func runSqliteServiceIfNeeded(
 	components []string,
 	cfg config.Config,
 ) {
+	if !cfg.Sqlite.Enabled {
+		log.Warn(fmt.Sprintf("Sqlite service is disabled"))
+		return
+	}
+
 	dbPath := make(map[string]string)
 	if isNeeded([]string{
 		cdkcommon.AGGREGATOR},
@@ -845,7 +850,8 @@ func runSqliteServiceIfNeeded(
 	}
 
 	server := sqldb.CreateSqliteService(cfg.Sqlite, dbPath)
-	log.Info(fmt.Sprintf("Starting sqlite service on %s:%d,max:%v,\n%v", cfg.Sqlite.Host, cfg.Sqlite.Port, cfg.Sqlite.MaxRequestsPerIPAndSecond, allDBPath))
+	log.Info(fmt.Sprintf("Starting sqlite service on %s:%d,max:%v,\n%v",
+		cfg.Sqlite.Host, cfg.Sqlite.Port, cfg.Sqlite.MaxRequestsPerIPAndSecond, allDBPath))
 	go func() {
 		if err := server.Start(); err != nil {
 			log.Fatal(err)

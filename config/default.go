@@ -342,6 +342,7 @@ DelayBeetweenRetries = "60s"
 KeepCertificatesHistory = true
 
 [Sqlite]
+Enabled = false
 Host = "0.0.0.0"
 Port = 8081
 ReadTimeout = "2s"
