@@ -341,6 +341,7 @@ MaxRetriesStoreCertificate = 3
 DelayBeetweenRetries = "60s"
 KeepCertificatesHistory = true
 
+# For X Layer
 [Sqlite]
 Enabled = false
 Host = "0.0.0.0"
