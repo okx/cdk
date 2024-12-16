@@ -20,6 +20,7 @@ const (
 	meterName = "github.com/0xPolygon/cdk/sqlite/service"
 
 	METHOD_SELECT = "select"
+	METHOD_INSERT = "insert"
 	METHOD_UPDATE = "update"
 	METHOD_DELETE = "delete"
 
@@ -104,16 +105,12 @@ func (b *SqliteEndpoints) Select(
 	db string,
 	sql string,
 ) (interface{}, rpc.Error) {
-	log.Info(fmt.Sprintf("zjg----1"))
 	err, dbCon := b.checkAndGetDB(db, sql, METHOD_SELECT)
 	if err != nil {
-		log.Info(fmt.Sprintf("zjg----1-2---error"))
 		return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("check params invalid: %s", err.Error()))
 	}
-	log.Info(fmt.Sprintf("zjg----2"))
 	ctx, cancel := context.WithTimeout(context.Background(), b.readTimeout)
 	defer cancel()
-	log.Info(fmt.Sprintf("zjg----2--1"))
 	rows, err := dbCon.QueryContext(ctx, sql)
 	if err != nil {
 		if errors.Is(err, dbSql.ErrNoRows) {
@@ -122,15 +119,61 @@ func (b *SqliteEndpoints) Select(
 		}
 		return nil, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to query: %s", err.Error()))
 	}
-	log.Info(fmt.Sprintf("zjg----3"))
 
 	err, result := getResults(rows)
 	if err != nil {
 		return nil, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get results: %s", err.Error()))
 	}
-	log.Info(fmt.Sprintf("zjg----14"))
 
 	return result, nil
+}
+
+func (b *SqliteEndpoints) Insert(
+	db string,
+	sql string,
+) (interface{}, rpc.Error) {
+	log.Info(fmt.Sprintf("Sqlite service insert: %s, %s", db, sql))
+	err, dbCon := b.checkAndGetDB(db, sql, METHOD_INSERT)
+	if err != nil {
+		return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("check params invalid: %s", err.Error()))
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), b.readTimeout)
+	defer cancel()
+
+	tx, err := NewTx(ctx, dbCon)
+	if err != nil {
+		log.Error(fmt.Sprintf("failed to create tx: %s", err))
+		return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to create tx: %s", err))
+	}
+	shouldRollback := true
+	defer func() {
+		if shouldRollback {
+			if errRllbck := tx.Rollback(); errRllbck != nil {
+				log.Errorf("error while rolling back tx %v", errRllbck)
+			}
+		}
+	}()
+
+	ct, err := tx.Exec(sql)
+	if err != nil {
+		log.Error(fmt.Sprintf("failed to exec: %s", err))
+		return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to exec: %s", err))
+	}
+	count, err := ct.RowsAffected()
+	if err != nil {
+		log.Error(fmt.Sprintf("failed to get rows affected: %s", err))
+		return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to get rows affected: %s", err))
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Error(fmt.Sprintf("failed to commit: %s", err))
+		return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to commit: %s", err))
+	}
+	shouldRollback = false
+
+	return types.SqliteData{
+		RowsAffected: count,
+	}, nil
 }
 
 func (b *SqliteEndpoints) Update(
@@ -145,11 +188,7 @@ func (b *SqliteEndpoints) Update(
 	}
 	c.Add(ctx, 1)
 
-	return types.SqliteData{
-		ProofLocalExitRoot:  "ProofLocalExitRoot",
-		ProofRollupExitRoot: "ProofRollupExitRoot",
-		L1InfoTreeLeaf:      "L1InfoTreeLeaf",
-	}, nil
+	return types.SqliteData{}, nil
 }
 
 func (b *SqliteEndpoints) Delete(
@@ -158,11 +197,7 @@ func (b *SqliteEndpoints) Delete(
 ) (interface{}, rpc.Error) {
 	log.Info(fmt.Sprintf("Sqlite service Delete: %s, %s", db, sql))
 
-	return types.SqliteData{
-		ProofLocalExitRoot:  "ProofLocalExitRoot",
-		ProofRollupExitRoot: "ProofRollupExitRoot",
-		L1InfoTreeLeaf:      "L1InfoTreeLeaf",
-	}, nil
+	return types.SqliteData{}, nil
 }
 
 func (b *SqliteEndpoints) GetDbs() (interface{}, rpc.Error) {
@@ -170,17 +205,13 @@ func (b *SqliteEndpoints) GetDbs() (interface{}, rpc.Error) {
 	dbList := make(map[string][]string)
 	for k, dbPath := range b.dbMaps {
 		log.Info(fmt.Sprintf("Sqlite service: %s, %s", k, dbPath))
-
 		sql := "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name;"
 		err, dbCon := b.checkAndGetDB(k, sql, METHOD_SELECT)
 		if err != nil {
-			log.Info(fmt.Sprintf("zjg----1-2---error"))
 			return zeroHex, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("%s", err.Error()))
 		}
-		log.Info(fmt.Sprintf("zjg----2"))
 		ctx, cancel := context.WithTimeout(context.Background(), b.readTimeout)
 		defer cancel()
-		log.Info(fmt.Sprintf("zjg----2--1"))
 		rows, err := dbCon.QueryContext(ctx, sql)
 		if err != nil {
 			if errors.Is(err, dbSql.ErrNoRows) {
@@ -189,7 +220,6 @@ func (b *SqliteEndpoints) GetDbs() (interface{}, rpc.Error) {
 			}
 			return nil, rpc.NewRPCError(rpc.DefaultErrorCode, fmt.Sprintf("failed to query: %s", err.Error()))
 		}
-		log.Info(fmt.Sprintf("zjg----3"))
 
 		err, result := getTables(rows)
 		if err != nil {
@@ -203,73 +233,59 @@ func (b *SqliteEndpoints) GetDbs() (interface{}, rpc.Error) {
 }
 
 func (b *SqliteEndpoints) checkAndGetDB(db string, sql string, method string) (error, *dbSql.DB) {
-	log.Info("zjg, chenckAndGetDB: -----------1")
+	log.Info(fmt.Sprintf("Sqlite endpoints, check db:%v,sql:%v,method:%v", db, sql, method))
 	if len(sql) <= LIMIT_SQL_LEN {
-		log.Info("zjg, chenckAndGetDB: -----------1--1")
 		return fmt.Errorf("sql length is too short"), nil
 	}
-	log.Info("zjg, chenckAndGetDB: -----------2")
 
 	sqlMethod := strings.ToLower(sql[:6])
 	if sqlMethod != method {
 		return fmt.Errorf("sql method is not valid"), nil
 	}
-	log.Info("zjg, chenckAndGetDB: -----------3")
 
 	found := false
 	for _, str := range b.authMethods {
-		log.Info("zjg, chenckAndGetDB: -----------4")
-
 		if str == method {
 			found = true
 			break
 		}
 	}
 	if !found {
-		log.Info("zjg, chenckAndGetDB: -----------5")
 		return fmt.Errorf("sql method is not authorized"), nil
 	}
-	log.Info("zjg, chenckAndGetDB: -----------6")
 
 	dbCon, ok := b.sqlDBs[db]
-	log.Info("zjg, chenckAndGetDB: -----------7")
 	if !ok {
 		return fmt.Errorf("sql db is not valid"), nil
 	}
-	log.Info("zjg, chenckAndGetDB: -----------8")
 	return nil, dbCon
 }
 
 func getResults(rows *dbSql.Rows) (error, []A) {
 	var result []A
-
-	// 获取列名
 	columns, err := rows.Columns()
 	if err != nil {
-		log.Fatalf("Failed to get columns: %v", err)
+		log.Error(fmt.Sprintf("Failed to get columns: %v", err))
+		return err, nil
 	}
 	for rows.Next() {
 		record := A{Fields: make(map[string]interface{})}
 
-		// 创建值和指针的切片
 		values := make([]interface{}, len(columns))
 		valuePtrs := make([]interface{}, len(columns))
 		for i := range values {
 			valuePtrs[i] = &values[i]
 		}
 
-		// 扫描结果
 		if err := rows.Scan(valuePtrs...); err != nil {
-			log.Fatalf("Failed to scan row: %v", err)
+			log.Error("Failed to scan row: %v", err)
+			return err, nil
 		}
 
-		// 将每列数据存入 map
 		for i, colName := range columns {
 			record.Fields[colName] = values[i]
 		}
 
-		// 输出结果或处理
-		fmt.Printf("Record: %+v\n", record.Fields)
 		result = append(result, record)
 	}
 
