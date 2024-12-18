@@ -25,7 +25,7 @@ import (
 )
 
 const ten = 10
-const multipleBatchSize = 5
+const multipleBatchSize = 3
 
 // EthTxManager represents the eth tx manager interface
 type EthTxManager interface {
