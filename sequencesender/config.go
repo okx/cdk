@@ -65,8 +65,11 @@ type Config struct {
 	// BlockFinality indicates the status of the blocks that will be queried in order to sync
 	BlockFinality string `jsonschema:"enum=LatestBlock, enum=SafeBlock, enum=PendingBlock, enum=FinalizedBlock, enum=EarliestBlock" mapstructure:"BlockFinality"` //nolint:lll
 
-	// RPCURL is the URL of the RPC server
-	RPCURL string `mapstructure:"RPCURL"`
+	// RPCURLS is the URL of the RPC server
+	RPCURLS string `mapstructure:"RPCURLS"`
+
+	// RPCTimeout is the timeout for the L2 RPC calls
+	RPCTimeout types.Duration `mapstructure:"RPCTimeout"`
 
 	// GetBatchWaitInterval is the time to wait to query for a new batch when there are no more batches available
 	GetBatchWaitInterval types.Duration `mapstructure:"GetBatchWaitInterval"`
