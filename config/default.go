@@ -90,7 +90,7 @@ WaitPeriodPurgeTxFile = "15m"
 MaxPendingTx = 1
 MaxBatchesForL1 = 300
 BlockFinality = "FinalizedBlock"
-RPCURLS = "{{L2URL}}"
+RPCURL = "{{L2URL}}"
 RPCTimeout = "60s"
 GetBatchWaitInterval = "10s"
 	[SequenceSender.EthTxManager]
@@ -131,7 +131,7 @@ SenderAddress = "{{SenderProofToL1Addr}}"
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
 GasOffset = 0
-RPCURLS = "{{L2URL}}"
+RPCURL = "{{L2URL}}"
 RPCTimeout = "60s"
 WitnessURL = "{{WitnessURL}}"
 UseFullWitness = false
