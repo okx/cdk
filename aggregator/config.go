@@ -99,8 +99,8 @@ type Config struct {
 	// final gas: 1100
 	GasOffset uint64 `mapstructure:"GasOffset"`
 
-	// RPCURLS is the URL of the RPC server
-	RPCURLS string `mapstructure:"RPCURLS"`
+	// RPCURL is the URL of the RPC server
+	RPCURL string `mapstructure:"RPCURL"`
 
 	// RPCTimeout is the timeout for the L2 RPC calls
 	RPCTimeout types.Duration `mapstructure:"RPCTimeout"`

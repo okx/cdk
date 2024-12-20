@@ -234,8 +234,8 @@ func createSequenceSender(
 	logger := log.WithFields("module", cdkcommon.SEQUENCE_SENDER)
 
 	// Check config
-	if cfg.SequenceSender.RPCURLS == "" {
-		logger.Fatal("Required field RPCURLS is empty in sequence sender config")
+	if cfg.SequenceSender.RPCURL == "" {
+		logger.Fatal("Required field RPCURL is empty in sequence sender config")
 	}
 
 	ethman, err := etherman.NewClient(ethermanconfig.Config{

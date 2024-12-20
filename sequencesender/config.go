@@ -65,8 +65,8 @@ type Config struct {
 	// BlockFinality indicates the status of the blocks that will be queried in order to sync
 	BlockFinality string `jsonschema:"enum=LatestBlock, enum=SafeBlock, enum=PendingBlock, enum=FinalizedBlock, enum=EarliestBlock" mapstructure:"BlockFinality"` //nolint:lll
 
-	// RPCURLS is the URL of the RPC server
-	RPCURLS string `mapstructure:"RPCURLS"`
+	// RPCURL is the URL of the RPC server
+	RPCURL string `mapstructure:"RPCURL"`
 
 	// RPCTimeout is the timeout for the L2 RPC calls
 	RPCTimeout types.Duration `mapstructure:"RPCTimeout"`
