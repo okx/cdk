@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -99,7 +100,7 @@ func New(cfg Config, logger *log.Logger,
 		sequenceData:    make(map[uint64]*sequenceData),
 		validStream:     false,
 		TxBuilder:       txBuilder,
-		rpcClient:       rpc.NewBatchEndpoints(cfg.RPCURL),
+		rpcClient:       rpc.NewBatchEndpoints(strings.Split(cfg.RPCURLS, ","), cfg.RPCTimeout.Duration),
 	}
 
 	logger.Infof("TxBuilder configuration: %s", txBuilder.String())
