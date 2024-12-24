@@ -23,14 +23,13 @@ var (
 const busyResponse = "busy"
 
 type BatchEndpoints struct {
-	urlList     []string
-	index       int
+	url         string
 	readTimeout time.Duration
 }
 
-func NewBatchEndpoints(urlList []string, readTimeout time.Duration) *BatchEndpoints {
+func NewBatchEndpoints(url string, readTimeout time.Duration) *BatchEndpoints {
 	return &BatchEndpoints{
-		urlList:     urlList,
+		url:         url,
 		readTimeout: readTimeout,
 	}
 }
@@ -54,7 +53,7 @@ func (b *BatchEndpoints) GetBatch(batchNumber uint64) (*types.RPCBatch, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), b.readTimeout)
 	defer cancel()
-	response, err := rpc.JSONRPCCallWithContext(ctx, b.getNextURL(), "zkevm_getBatchByNumber", batchNumber)
+	response, err := rpc.JSONRPCCallWithContext(ctx, b.url, "zkevm_getBatchByNumber", batchNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +102,7 @@ func (b *BatchEndpoints) GetL2BlockTimestamp(blockHash string) (uint64, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), b.readTimeout)
 	defer cancel()
-	response, err := rpc.JSONRPCCallWithContext(ctx, b.getNextURL(), "eth_getBlockByHash", blockHash, false)
+	response, err := rpc.JSONRPCCallWithContext(ctx, b.url, "eth_getBlockByHash", blockHash, false)
 	if err != nil {
 		return 0, err
 	}
@@ -139,7 +138,7 @@ func (b *BatchEndpoints) GetWitness(batchNumber uint64, fullWitness bool) ([]byt
 
 	ctx, cancel := context.WithTimeout(context.Background(), b.readTimeout)
 	defer cancel()
-	response, err = rpc.JSONRPCCallWithContext(ctx, b.getNextURL(), "zkevm_getBatchWitness", batchNumber, witnessType)
+	response, err = rpc.JSONRPCCallWithContext(ctx, b.url, "zkevm_getBatchWitness", batchNumber, witnessType)
 	if err != nil {
 		return nil, err
 	}
@@ -159,13 +158,4 @@ func (b *BatchEndpoints) GetWitness(batchNumber uint64, fullWitness bool) ([]byt
 	}
 
 	return common.FromHex(witness), nil
-}
-
-func (b *BatchEndpoints) getNextURL() string {
-	b.index++
-	if b.index >= len(b.urlList) {
-		b.index = 0
-	}
-	log.Infof("Request url: %s", b.urlList[b.index])
-	return b.urlList[b.index]
 }
