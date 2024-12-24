@@ -252,7 +252,7 @@ func Test_getGetL2BlockTimestamp(t *testing.T) {
 			}))
 			defer srv.Close()
 
-			rcpBatchClient := NewBatchEndpoints([]string{srv.URL}, 0)
+			rcpBatchClient := NewBatchEndpoints(srv.URL, 0)
 			timestamp, err := rcpBatchClient.GetL2BlockTimestamp(string(tt.blockHash))
 			if tt.expectErr != nil {
 				require.Equal(t, tt.expectErr.Error(), err.Error())
