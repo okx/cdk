@@ -158,7 +158,7 @@ func New(
 		aggLayerClient:          aggLayerClient,
 		sequencerPrivateKey:     sequencerPrivateKey,
 		witnessRetrievalChan:    make(chan state.DBBatch),
-		rpcClient:               rpc.NewBatchEndpoints(strings.Split(cfg.RPCURL, ","), cfg.RPCTimeout.Duration),
+		rpcClient:               rpc.NewBatchEndpoints(cfg.RPCURL, cfg.RPCTimeout.Duration),
 	}
 
 	if a.ctx == nil {
