@@ -51,7 +51,9 @@ func (b *BatchEndpoints) GetBatch(batchNumber uint64) (*types.RPCBatch, error) {
 
 	log.Infof("Getting batch %d from RPC", batchNumber)
 
-	response, err := rpc.JSONRPCCall(b.url, "zkevm_getBatchByNumber", batchNumber)
+	ctx, cancel := context.WithTimeout(context.Background(), b.readTimeout)
+	defer cancel()
+	response, err := rpc.JSONRPCCallWithContext(ctx, b.url, "zkevm_getBatchByNumber", batchNumber)
 	if err != nil {
 		return nil, err
 	}
