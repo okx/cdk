@@ -25,7 +25,7 @@ import (
 )
 
 const ten = 10
-const multipleBatchSize = 5
+const batchMultiplier = 5
 
 // EthTxManager represents the eth tx manager interface
 type EthTxManager interface {
@@ -216,7 +216,7 @@ func (s *SequenceSender) checkWait() bool {
 	s.mutexSequence.Lock()
 	defer s.mutexSequence.Unlock()
 
-	if uint64(len(s.sequenceList)) >= s.cfg.MaxBatchesForL1*multipleBatchSize {
+	if uint64(len(s.sequenceList)) >= s.cfg.MaxBatchesForL1*batchMultiplier {
 		s.logger.Infof("Sequence list is full: %d, waiting to sync batch from rpc.", len(s.sequenceList))
 		return true
 	}
