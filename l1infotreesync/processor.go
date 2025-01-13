@@ -30,6 +30,7 @@ type processor struct {
 	rollupExitTree *tree.UpdatableTree
 	halted         bool
 	haltedReason   string
+	log            *log.Logger
 }
 
 // UpdateL1InfoTree representation of the UpdateL1InfoTree event
@@ -149,6 +150,7 @@ func newProcessor(dbPath string) (*processor, error) {
 		db:             db,
 		l1InfoTree:     tree.NewAppendOnlyTree(db, migrations.L1InfoTreePrefix),
 		rollupExitTree: tree.NewUpdatableTree(db, migrations.RollupExitTreePrefix),
+		log:            log.WithFields("processor", "l1infotreesync"),
 	}, nil
 }
 
@@ -176,7 +178,7 @@ func (p *processor) GetLatestInfoUntilBlock(ctx context.Context, blockNum uint64
 	}
 	defer func() {
 		if err := tx.Rollback(); err != nil {
-			log.Warnf("error rolling back tx: %v", err)
+			p.log.Warnf("error rolling back tx: %v", err)
 		}
 	}()
 
@@ -233,6 +235,8 @@ func (p *processor) getLastProcessedBlockWithTx(tx db.Querier) (uint64, error) {
 // Reorg triggers a purge and reset process on the processor to leaf it on a state
 // as if the last block processed was firstReorgedBlock-1
 func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
+	p.log.Infof("reorging to block %d", firstReorgedBlock)
+
 	tx, err := db.NewTx(ctx, p.db)
 	if err != nil {
 		return err
@@ -266,6 +270,9 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 	if err := tx.Commit(); err != nil {
 		return err
 	}
+
+	p.log.Infof("reorged to block %d, %d rows affected", firstReorgedBlock, rowsAffected)
+
 	if rowsAffected > 0 {
 		p.halted = false
 		p.haltedReason = ""
@@ -278,7 +285,7 @@ func (p *processor) Reorg(ctx context.Context, firstReorgedBlock uint64) error {
 // and updates the last processed block (can be called without events for that purpose)
 func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	if p.halted {
-		log.Errorf("processor is halted due to: %s", p.haltedReason)
+		p.log.Errorf("processor is halted due to: %s", p.haltedReason)
 		return sync.ErrInconsistentState
 	}
 	tx, err := db.NewTx(ctx, p.db)
@@ -289,12 +296,12 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	defer func() {
 		if shouldRollback {
 			if errRllbck := tx.Rollback(); errRllbck != nil {
-				log.Errorf("error while rolling back tx %v", errRllbck)
+				p.log.Errorf("error while rolling back tx %v", errRllbck)
 			}
 		}
 	}()
 
-	if _, err := tx.Exec(`INSERT INTO block (num) VALUES ($1)`, block.Num); err != nil {
+	if _, err := tx.Exec(`INSERT INTO block (num, hash) VALUES ($1, $2)`, block.Num, block.Hash.String()); err != nil {
 		return fmt.Errorf("insert Block. err: %w", err)
 	}
 
@@ -340,10 +347,13 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			if err != nil {
 				return fmt.Errorf("AddLeaf(%s). err: %w", info.String(), err)
 			}
-			log.Infof("inserted L1InfoTreeLeaf %s", info.String())
+			p.log.Infof("inserted L1InfoTreeLeaf %s", info.String())
 			l1InfoLeavesAdded++
 		}
 		if event.UpdateL1InfoTreeV2 != nil {
+			p.log.Infof("handle UpdateL1InfoTreeV2 event. Block: %d, block hash: %s. Event root: %s. Event leaf count: %d.",
+				block.Num, block.Hash, event.UpdateL1InfoTreeV2.CurrentL1InfoRoot.String(), event.UpdateL1InfoTreeV2.LeafCount)
+
 			root, err := p.l1InfoTree.GetLastRoot(tx)
 			if err != nil {
 				return fmt.Errorf("GetLastRoot(). err: %w", err)
@@ -355,33 +365,33 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 			if root.Hash != event.UpdateL1InfoTreeV2.CurrentL1InfoRoot || root.Index+1 != event.UpdateL1InfoTreeV2.LeafCount {
 				errStr := fmt.Sprintf(
 					"failed to check UpdateL1InfoTreeV2. Root: %s vs event:%s. "+
-						"Index: : %d vs event.LeafCount:%d. Happened on block %d",
-					root.Hash, common.Bytes2Hex(event.UpdateL1InfoTreeV2.CurrentL1InfoRoot[:]),
+						"Index: %d vs event.LeafCount: %d. Happened on block %d. Block hash: %s.",
+					root.Hash, event.UpdateL1InfoTreeV2.CurrentL1InfoRoot.String(),
 					root.Index, event.UpdateL1InfoTreeV2.LeafCount,
-					block.Num,
+					block.Num, block.Hash.String(),
 				)
-				log.Error(errStr)
+				p.log.Error(errStr)
 				p.haltedReason = errStr
 				p.halted = true
 				return sync.ErrInconsistentState
 			}
 		}
 		if event.VerifyBatches != nil {
-			log.Debugf("handle VerifyBatches event %s", event.VerifyBatches.String())
+			p.log.Debugf("handle VerifyBatches event %s", event.VerifyBatches.String())
 			err = p.processVerifyBatches(tx, block.Num, event.VerifyBatches)
 			if err != nil {
 				err = fmt.Errorf("processVerifyBatches. err: %w", err)
-				log.Errorf("error processing VerifyBatches: %v", err)
+				p.log.Errorf("error processing VerifyBatches: %v", err)
 				return err
 			}
 		}
 
 		if event.InitL1InfoRootMap != nil {
-			log.Debugf("handle InitL1InfoRootMap event %s", event.InitL1InfoRootMap.String())
+			p.log.Debugf("handle InitL1InfoRootMap event %s", event.InitL1InfoRootMap.String())
 			err = processEventInitL1InfoRootMap(tx, block.Num, event.InitL1InfoRootMap)
 			if err != nil {
 				err = fmt.Errorf("initL1InfoRootMap. Err: %w", err)
-				log.Errorf("error processing InitL1InfoRootMap: %v", err)
+				p.log.Errorf("error processing InitL1InfoRootMap: %v", err)
 				return err
 			}
 		}
@@ -392,7 +402,7 @@ func (p *processor) ProcessBlock(ctx context.Context, block sync.Block) error {
 	}
 	shouldRollback = false
 
-	log.Infof("block %d processed with %d events", block.Num, len(block.Events))
+	p.log.Infof("block %d processed with %d events", block.Num, len(block.Events))
 	return nil
 }
 
