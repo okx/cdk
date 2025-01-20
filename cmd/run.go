@@ -86,56 +86,60 @@ func start(cliCtx *cli.Context) error {
 	)
 
 	// For X Layer
-	runSqliteServiceIfNeeded(components, *c)
+	if c.Sqlite.Enabled {
+		runSqliteServiceIfNeeded(components, *c)
+	} else {
+		log.Warn(fmt.Sprintf("Sqlite service is disabled"))
 
-	for _, component := range components {
-		switch component {
-		case cdkcommon.SEQUENCE_SENDER:
-			c.SequenceSender.Log = c.Log
-			seqSender := createSequenceSender(*c, l1Client, l1InfoTreeSync)
-			// start sequence sender in a goroutine, checking for errors
-			go seqSender.Start(cliCtx.Context)
+		for _, component := range components {
+			switch component {
+			case cdkcommon.SEQUENCE_SENDER:
+				c.SequenceSender.Log = c.Log
+				seqSender := createSequenceSender(*c, l1Client, l1InfoTreeSync)
+				// start sequence sender in a goroutine, checking for errors
+				go seqSender.Start(cliCtx.Context)
 
-		case cdkcommon.AGGREGATOR:
-			aggregator := createAggregator(cliCtx.Context, *c, !cliCtx.Bool(config.FlagMigrations))
-			// start aggregator in a goroutine, checking for errors
-			go func() {
-				if err := aggregator.Start(); err != nil {
-					aggregator.Stop()
+			case cdkcommon.AGGREGATOR:
+				aggregator := createAggregator(cliCtx.Context, *c, !cliCtx.Bool(config.FlagMigrations))
+				// start aggregator in a goroutine, checking for errors
+				go func() {
+					if err := aggregator.Start(); err != nil {
+						aggregator.Stop()
+						log.Fatal(err)
+					}
+				}()
+			case cdkcommon.AGGORACLE:
+				aggOracle := createAggoracle(*c, l1Client, l2Client, l1InfoTreeSync)
+				go aggOracle.Start(cliCtx.Context)
+			case cdkcommon.RPC:
+				server := createRPC(
+					c.RPC,
+					c.Common.NetworkID,
+					claimSponsor,
+					l1InfoTreeSync,
+					lastGERSync,
+					l1BridgeSync,
+					l2BridgeSync,
+				)
+				go func() {
+					if err := server.Start(); err != nil {
+						log.Fatal(err)
+					}
+				}()
+			case cdkcommon.AGGSENDER:
+				aggsender, err := createAggSender(
+					cliCtx.Context,
+					c.AggSender,
+					l1Client,
+					l1InfoTreeSync,
+					l2BridgeSync,
+				)
+				if err != nil {
 					log.Fatal(err)
 				}
-			}()
-		case cdkcommon.AGGORACLE:
-			aggOracle := createAggoracle(*c, l1Client, l2Client, l1InfoTreeSync)
-			go aggOracle.Start(cliCtx.Context)
-		case cdkcommon.RPC:
-			server := createRPC(
-				c.RPC,
-				c.Common.NetworkID,
-				claimSponsor,
-				l1InfoTreeSync,
-				lastGERSync,
-				l1BridgeSync,
-				l2BridgeSync,
-			)
-			go func() {
-				if err := server.Start(); err != nil {
-					log.Fatal(err)
-				}
-			}()
-		case cdkcommon.AGGSENDER:
-			aggsender, err := createAggSender(
-				cliCtx.Context,
-				c.AggSender,
-				l1Client,
-				l1InfoTreeSync,
-				l2BridgeSync,
-			)
-			if err != nil {
-				log.Fatal(err)
+
+				go aggsender.Start(cliCtx.Context)
 			}
-
-			go aggsender.Start(cliCtx.Context)
 		}
 	}
 

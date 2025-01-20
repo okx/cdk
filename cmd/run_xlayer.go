@@ -14,11 +14,6 @@ func runSqliteServiceIfNeeded(
 	components []string,
 	cfg config.Config,
 ) {
-	if !cfg.Sqlite.Enabled {
-		log.Warn(fmt.Sprintf("Sqlite service is disabled"))
-		return
-	}
-
 	dbPath := make(map[string]string)
 	if isNeeded([]string{
 		cdkcommon.AGGREGATOR},
