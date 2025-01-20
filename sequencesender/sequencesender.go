@@ -25,6 +25,7 @@ import (
 )
 
 const ten = 10
+const batchMultiplier = 5
 
 // EthTxManager represents the eth tx manager interface
 type EthTxManager interface {
@@ -98,7 +99,7 @@ func New(cfg Config, logger *log.Logger,
 		sequenceData:    make(map[uint64]*sequenceData),
 		validStream:     false,
 		TxBuilder:       txBuilder,
-		rpcClient:       rpc.NewBatchEndpoints(cfg.RPCURL),
+		rpcClient:       rpc.NewBatchEndpoints(cfg.RPCURL, cfg.RPCTimeout.Duration),
 	}
 
 	logger.Infof("TxBuilder configuration: %s", txBuilder.String())
@@ -176,6 +177,11 @@ func (s *SequenceSender) batchRetrieval(ctx context.Context) error {
 			s.logger.Info("context cancelled, stopping batch retrieval")
 			return ctx.Err()
 		default:
+			if s.checkWait() {
+				<-ticker.C
+				continue
+			}
+
 			// Try to retrieve batch from RPC
 			rpcBatch, err := s.rpcClient.GetBatch(currentBatchNumber)
 			if err != nil {
@@ -204,6 +210,17 @@ func (s *SequenceSender) batchRetrieval(ctx context.Context) error {
 			currentBatchNumber++
 		}
 	}
+}
+
+func (s *SequenceSender) checkWait() bool {
+	s.mutexSequence.Lock()
+	defer s.mutexSequence.Unlock()
+
+	if uint64(len(s.sequenceList)) >= s.cfg.MaxBatchesForL1*batchMultiplier {
+		s.logger.Infof("Sequence list is full: %d, waiting to sync batch from rpc.", len(s.sequenceList))
+		return true
+	}
+	return false
 }
 
 func (s *SequenceSender) populateSequenceData(rpcBatch *types.RPCBatch, batchNumber uint64) error {
