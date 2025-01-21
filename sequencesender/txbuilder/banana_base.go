@@ -10,7 +10,6 @@ import (
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
-	rpctypes "github.com/0xPolygon/cdk/rpc/types"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/state/datastream"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -34,11 +33,6 @@ type l1InfoSyncer interface {
 
 type l1Client interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
-}
-
-// RPCInterface represents the RPC interface
-type RPCInterface interface {
-	GetBatch(batchNumber uint64) (*rpctypes.RPCBatch, error)
 }
 
 type TxBuilderBananaBase struct {
