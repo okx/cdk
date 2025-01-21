@@ -96,7 +96,8 @@ func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(
 	}
 
 	// For X Layer
-	if t.checkMaxTimestamp(ethseq) != nil {
+	err = t.checkMaxTimestamp(ethseq)
+	if err != nil {
 		return nil, err
 	}
 
