@@ -2,7 +2,7 @@ package txbuilder
 
 import (
 	"fmt"
-	
+
 	"github.com/0xPolygon/cdk/etherman"
 	rpctypes "github.com/0xPolygon/cdk/rpc/types"
 )
@@ -25,7 +25,7 @@ func (t *TxBuilderBananaValidium) checkMaxTimestamp(sequence etherman.SequenceBa
 		t.logger.Error("check rpc max timestamp error: ", err)
 		return err
 	}
-	if rpcBatch.LastL2BLockTimestamp() == sequence.MaxSequenceTimestamp {
+	if rpcBatch.LastL2BLockTimestamp() != sequence.MaxSequenceTimestamp {
 		t.logger.Error("max timestamp mismatch: ", rpcBatch.LastL2BLockTimestamp(), sequence.MaxSequenceTimestamp)
 		return fmt.Errorf("max timestamp mismatch: %v, %v", rpcBatch.LastL2BLockTimestamp(), sequence.MaxSequenceTimestamp)
 	}
