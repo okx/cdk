@@ -104,6 +104,7 @@ func newBananaValidiumTestData(t *testing.T, maxBatchesForL1 uint64) *testDataBa
 		l1InfoSyncer,
 		l1Client,
 		big.NewInt(0),
+		nil,
 	)
 	require.NotNil(t, sut)
 	sut.SetCondNewSeq(condMock)

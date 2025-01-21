@@ -307,6 +307,11 @@ func newTxBuilder(
 	switch contracts.VersionType(cfg.Common.ContractVersions) {
 	case contracts.VersionBanana:
 		if cfg.Common.IsValidiumMode {
+			var l2RpcClient txbuilder.RPCInterface
+			if cfg.SequenceSender.CheckSendBatch {
+				l2RpcClient = rpc.NewBatchEndpoints(cfg.SequenceSender.RPCURL, cfg.SequenceSender.RPCTimeout.Duration)
+			}
+
 			txBuilder = txbuilder.NewTxBuilderBananaValidium(
 				logger,
 				ethman.Contracts.Banana.Rollup,
@@ -317,6 +322,7 @@ func newTxBuilder(
 				l1InfoTreeSync,
 				l1Client,
 				blockFinality,
+				l2RpcClient,
 			)
 		} else {
 			txBuilder = txbuilder.NewTxBuilderBananaZKEVM(

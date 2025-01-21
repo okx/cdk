@@ -10,6 +10,7 @@ import (
 	"github.com/0xPolygon/cdk/etherman"
 	"github.com/0xPolygon/cdk/l1infotreesync"
 	"github.com/0xPolygon/cdk/log"
+	rpctypes "github.com/0xPolygon/cdk/rpc/types"
 	"github.com/0xPolygon/cdk/sequencesender/seqsendertypes"
 	"github.com/0xPolygon/cdk/state/datastream"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -35,6 +36,11 @@ type l1Client interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
 }
 
+// RPCInterface represents the RPC interface
+type RPCInterface interface {
+	GetBatch(batchNumber uint64) (*rpctypes.RPCBatch, error)
+}
+
 type TxBuilderBananaBase struct {
 	logger                 *log.Logger
 	rollupContract         rollupBananaBaseContractor
@@ -43,6 +49,7 @@ type TxBuilderBananaBase struct {
 	ethClient              l1Client
 	blockFinality          *big.Int
 	opts                   bind.TransactOpts
+	l2RpcClient            RPCInterface
 }
 
 func NewTxBuilderBananaBase(
@@ -53,6 +60,7 @@ func NewTxBuilderBananaBase(
 	ethClient l1Client,
 	blockFinality *big.Int,
 	opts bind.TransactOpts,
+	l2RpcClient RPCInterface,
 ) *TxBuilderBananaBase {
 	return &TxBuilderBananaBase{
 		logger:                 logger,
@@ -62,6 +70,7 @@ func NewTxBuilderBananaBase(
 		ethClient:              ethClient,
 		blockFinality:          blockFinality,
 		opts:                   opts,
+		l2RpcClient:            l2RpcClient,
 	}
 }
 

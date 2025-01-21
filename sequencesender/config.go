@@ -71,6 +71,9 @@ type Config struct {
 	// RPCTimeout is the timeout for the L2 RPC calls
 	RPCTimeout types.Duration `mapstructure:"RPCTimeout"`
 
+	// CheckSendBatch is the configuration for the Batch before sending it to L1
+	CheckSendBatch bool `mapstructure:"CheckSendBatch"`
+
 	// GetBatchWaitInterval is the time to wait to query for a new batch when there are no more batches available
 	GetBatchWaitInterval types.Duration `mapstructure:"GetBatchWaitInterval"`
 }

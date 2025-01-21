@@ -44,9 +44,11 @@ func NewTxBuilderBananaValidium(
 	l1InfoTree l1InfoSyncer,
 	ethClient l1Client,
 	blockFinality *big.Int,
+	l2RpcClient RPCInterface,
 ) *TxBuilderBananaValidium {
 	txBuilderBase := *NewTxBuilderBananaBase(logger, rollupContract,
-		gerContract, l1InfoTree, ethClient, blockFinality, opts)
+		gerContract, l1InfoTree, ethClient, blockFinality, opts,
+		l2RpcClient)
 
 	return &TxBuilderBananaValidium{
 		TxBuilderBananaBase: txBuilderBase,
@@ -92,6 +94,9 @@ func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(
 		t.logger.Error("error posting sequences to the data availability protocol: ", err.Error())
 		return nil, err
 	}
+	if t.checkMaxTimestamp(ethseq) != nil {
+		return nil, err
+	}
 
 	// Build sequence data
 	tx, err := t.internalBuildSequenceBatchesTx(ethseq, dataAvailabilityMessage)
@@ -100,6 +105,27 @@ func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(
 		return nil, err
 	}
 	return tx, nil
+}
+
+func (t *TxBuilderBananaValidium) checkMaxTimestamp(sequence etherman.SequenceBanana) error {
+	if t.l2RpcClient == nil {
+		return nil
+	}
+	var maxBatchNumber uint64
+	for _, batch := range sequence.Batches {
+		maxBatchNumber = max(maxBatchNumber, batch.BatchNumber)
+	}
+	rpcBatch, err := t.l2RpcClient.GetBatch(maxBatchNumber)
+	if err != nil {
+		t.logger.Error("check rpc max timestamp error: ", err)
+		return err
+	}
+	if rpcBatch.LastL2BLockTimestamp() != sequence.MaxSequenceTimestamp {
+		t.logger.Errorf("max timestamp mismatch: ", rpcBatch.LastL2BLockTimestamp(), sequence.MaxSequenceTimestamp)
+		return err
+	}
+	t.logger.Infof("max timestamp check passed:%v,%v", maxBatchNumber, sequence.MaxSequenceTimestamp)
+	return nil
 }
 
 // BuildSequenceBatchesTx builds a tx to be sent to the PoE SC method SequenceBatches.
