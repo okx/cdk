@@ -87,7 +87,8 @@ func (b *BatchEndpoints) GetBatch(batchNumber uint64) (*types.RPCBatch, error) {
 		}
 		rpcBatch.SetLastL2BLockTimestamp(lastL2BlockTimestamp)
 	} else {
-		log.Infof("No blocks in the batch, setting the last l2 block timestamp from the batch data:%v,%v", batchNumber, zkEVMBatchData.Timestamp)
+		log.Infof("No blocks in the batch, setting the last l2 block timestamp from the batch data:%v,%v",
+			batchNumber, zkEVMBatchData.Timestamp)
 		rpcBatch.SetLastL2BLockTimestamp(new(big.Int).SetBytes(common.FromHex(zkEVMBatchData.Timestamp)).Uint64())
 	}
 
