@@ -92,7 +92,7 @@ func (b *BatchEndpoints) GetBatch(batchNumber uint64) (*types.RPCBatch, error) {
 	}
 
 	if rpcBatch.IsClosed() && rpcBatch.LastL2BLockTimestamp() == 0 {
-		log.Infof("last L2 block timestamp is 0, cannot send sequence, %v", rpcBatch.BatchNumber())
+		log.Infof("last L2 block timestamp is 0, cannot send sequence, %v, %v", rpcBatch.BatchNumber(), rpcBatch.String())
 		time.Sleep(10 * time.Hour)
 	}
 
