@@ -203,7 +203,7 @@ func (s *SequenceSender) batchRetrieval(ctx context.Context) error {
 
 			if rpcBatch.LastL2BLockTimestamp() == 0 {
 				s.logger.Error(fmt.Sprintf("last L2 block timestamp is 0, cannot send sequence, %v", rpcBatch.BatchNumber()))
-				time.Sleep(10 * time.Hour)
+				time.Sleep(10 * time.Hour) //nolint:mnd
 			}
 
 			// Process and decode the batch
@@ -351,7 +351,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	s.logger.Infof("sending sequences to L1. From batch %d to batch %d", firstBatch.BatchNumber(), lastBatch.BatchNumber())
 	if lastBatch.LastL2BLockTimestamp() == 0 {
 		s.logger.Error(fmt.Sprintf("last L2 block timestamp is 0, cannot send sequence, %v", sequence.String()))
-		time.Sleep(10 * time.Hour)
+		time.Sleep(10 * time.Hour) //nolint:mnd
 		return
 	}
 
