@@ -44,9 +44,11 @@ func NewTxBuilderBananaValidium(
 	l1InfoTree l1InfoSyncer,
 	ethClient l1Client,
 	blockFinality *big.Int,
+	l2RpcClient RPCInterface,
 ) *TxBuilderBananaValidium {
 	txBuilderBase := *NewTxBuilderBananaBase(logger, rollupContract,
-		gerContract, l1InfoTree, ethClient, blockFinality, opts)
+		gerContract, l1InfoTree, ethClient, blockFinality, opts,
+		l2RpcClient)
 
 	return &TxBuilderBananaValidium{
 		TxBuilderBananaBase: txBuilderBase,
@@ -90,6 +92,12 @@ func (t *TxBuilderBananaValidium) BuildSequenceBatchesTx(
 	if dataAvailabilityMessage == nil {
 		err := fmt.Errorf("data availability message is nil")
 		t.logger.Error("error posting sequences to the data availability protocol: ", err.Error())
+		return nil, err
+	}
+
+	// For X Layer
+	err = t.checkMaxTimestamp(ethseq)
+	if err != nil {
 		return nil, err
 	}
 

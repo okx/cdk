@@ -43,6 +43,7 @@ type TxBuilderBananaBase struct {
 	ethClient              l1Client
 	blockFinality          *big.Int
 	opts                   bind.TransactOpts
+	l2RpcClient            RPCInterface
 }
 
 func NewTxBuilderBananaBase(
@@ -53,6 +54,7 @@ func NewTxBuilderBananaBase(
 	ethClient l1Client,
 	blockFinality *big.Int,
 	opts bind.TransactOpts,
+	l2RpcClient RPCInterface,
 ) *TxBuilderBananaBase {
 	return &TxBuilderBananaBase{
 		logger:                 logger,
@@ -62,6 +64,7 @@ func NewTxBuilderBananaBase(
 		ethClient:              ethClient,
 		blockFinality:          blockFinality,
 		opts:                   opts,
+		l2RpcClient:            l2RpcClient,
 	}
 }
 

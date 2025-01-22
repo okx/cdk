@@ -92,6 +92,7 @@ MaxBatchesForL1 = 300
 BlockFinality = "FinalizedBlock"
 RPCURL = "{{L2URL}}"
 RPCTimeout = "60s"
+CheckSendBatch = false
 GetBatchWaitInterval = "10s"
 	[SequenceSender.EthTxManager]
 		FrequencyToMonitorTxs = "1s"

@@ -148,6 +148,7 @@ func newBananaBaseTestData(t *testing.T) *testDataBananaBase {
 		zkevmContractMock,
 		gerContractMock,
 		l1InfoSyncer, l1Client, big.NewInt(0), opts,
+		nil,
 	)
 	require.NotNil(t, sut)
 	return &testDataBananaBase{

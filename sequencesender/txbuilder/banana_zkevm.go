@@ -46,7 +46,7 @@ func NewTxBuilderBananaZKEVM(
 	blockFinality *big.Int,
 ) *TxBuilderBananaZKEVM {
 	txBuilderBase := *NewTxBuilderBananaBase(logger, rollupContract,
-		gerContract, l1InfoTree, ethClient, blockFinality, opts)
+		gerContract, l1InfoTree, ethClient, blockFinality, opts, nil)
 
 	return &TxBuilderBananaZKEVM{
 		TxBuilderBananaBase: txBuilderBase,

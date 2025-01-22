@@ -81,13 +81,20 @@ func (b *BatchEndpoints) GetBatch(batchNumber uint64) (*types.RPCBatch, error) {
 
 	if len(zkEVMBatchData.Blocks) > 0 {
 		lastL2BlockTimestamp, err := b.GetL2BlockTimestamp(zkEVMBatchData.Blocks[len(zkEVMBatchData.Blocks)-1])
+		log.Infof("Getting the last l2 block timestamp from the rpc:%v,%v", batchNumber, lastL2BlockTimestamp)
 		if err != nil {
 			return nil, fmt.Errorf("error getting the last l2 block timestamp from the rpc: %w", err)
 		}
 		rpcBatch.SetLastL2BLockTimestamp(lastL2BlockTimestamp)
 	} else {
-		log.Infof("No blocks in the batch, setting the last l2 block timestamp from the batch data")
+		log.Infof("No blocks in the batch, setting the last l2 block timestamp from the batch data:%v,%v",
+			batchNumber, zkEVMBatchData.Timestamp)
 		rpcBatch.SetLastL2BLockTimestamp(new(big.Int).SetBytes(common.FromHex(zkEVMBatchData.Timestamp)).Uint64())
+	}
+
+	if rpcBatch.IsClosed() && rpcBatch.LastL2BLockTimestamp() == 0 {
+		log.Infof("last L2 block timestamp is 0, cannot send sequence, %v, %v", rpcBatch.BatchNumber(), rpcBatch.String())
+		time.Sleep(10 * time.Hour) //nolint:mnd
 	}
 
 	return rpcBatch, nil
