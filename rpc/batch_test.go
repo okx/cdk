@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/0xPolygon/cdk-rpc/rpc"
 	"github.com/ethereum/go-ethereum/common"
@@ -263,7 +264,7 @@ func Test_getGetL2BlockTimestampNull(t *testing.T) {
 	jSONRPCCall = func(_, _ string, _ ...interface{}) (rpc.Response, error) {
 		return response, nil
 	}
-	sut := NewBatchEndpoints("http://localhost:8080")
+	sut := NewBatchEndpoints("http://localhost:8080", 30*time.Second)
 	timestamp, err := sut.GetL2BlockTimestamp("0x123456")
 	require.Error(t, err)
 	require.Equal(t, uint64(0), timestamp)
@@ -277,7 +278,7 @@ func Test_getGetL2BlockTimestampZero(t *testing.T) {
 	jSONRPCCall = func(_, _ string, _ ...interface{}) (rpc.Response, error) {
 		return response, nil
 	}
-	sut := NewBatchEndpoints("http://localhost:8080")
+	sut := NewBatchEndpoints("http://localhost:8080", 30*time.Second)
 	timestamp, err := sut.GetL2BlockTimestamp("0x123456")
 	require.Error(t, err)
 	require.Equal(t, uint64(0), timestamp)
