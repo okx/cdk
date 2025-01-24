@@ -108,9 +108,7 @@ func (b *BatchEndpoints) GetL2BlockTimestamp(blockHash string) (uint64, error) {
 
 	log.Infof("Getting l2 block timestamp from RPC. Block hash: %s", blockHash)
 
-	ctx, cancel := context.WithTimeout(context.Background(), b.readTimeout)
-	defer cancel()
-	response, err := rpc.JSONRPCCallWithContext(ctx, b.url, "eth_getBlockByHash", blockHash, false)
+	response, err := jSONRPCCall(b.url, "eth_getBlockByHash", blockHash, false)
 	if err != nil {
 		return 0, err
 	}
