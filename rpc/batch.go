@@ -159,3 +159,39 @@ func (b *BatchEndpoints) GetWitness(batchNumber uint64, fullWitness bool) ([]byt
 
 	return common.FromHex(witness), nil
 }
+
+// GetLatestBatch retrieves the most recent batch from the RPC endpoint
+func (b *BatchEndpoints) GetLatestBatch() (*types.RPCBatch, error) {
+	log.Infof("GetLatestBatch called")
+
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), b.readTimeout)
+	defer cancel()
+
+	// Call RPC method to get the latest batch number
+	log.Infof("Calling RPC method to get the latest batch number")
+	response, err := rpc.JSONRPCCallWithContext(ctx, b.url, "zkevm_getLatestBatchNumber")
+	if err != nil {
+		log.Infof("Error getting latest batch number: %v", err)
+		return nil, fmt.Errorf("error getting latest batch number: %w", err)
+	}
+
+	// Check if the response is nil
+	if response.Result == nil {
+		log.Infof("Response result is nil, returning ErrNotFound")
+		return nil, state.ErrNotFound
+	}
+
+	// Parse the batch number from response
+	var batchNumber uint64
+	err = json.Unmarshal(response.Result, &batchNumber)
+	if err != nil {
+		log.Infof("Error unmarshalling latest batch number: %v", err)
+		return nil, fmt.Errorf("error unmarshalling latest batch number: %w", err)
+	}
+
+	log.Infof("Latest batch number obtained: %d", batchNumber)
+
+	// Get the batch data using the latest batch number
+	return b.GetBatch(batchNumber)
+}

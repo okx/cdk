@@ -440,7 +440,8 @@ func (a *Aggregator) Channel(stream prover.AggregatorService_ChannelServer) erro
 				}
 
 				if !proofGenerated {
-					proofGenerated, err = a.tryGenerateBatchProof(ctx, prover)
+					// proofGenerated, err = a.tryGenerateBatchProof(ctx, prover)
+					proofGenerated, err = a.tryGenerateBatchProof_FromRpcBatch(ctx, prover)
 					if err != nil {
 						tmpLogger.Errorf("Error trying to generate proof: %v", err)
 					}
@@ -1262,6 +1263,74 @@ func (a *Aggregator) getAndLockBatchToProve(
 	return stateBatch, witness, proof, nil
 }
 
+func (a *Aggregator) getAndProveBatchFromRPC(
+	ctx context.Context,
+	prover ProverInterface,
+) (*state.Batch, []byte, *state.Proof, error) {
+	proverID := prover.ID()
+	proverName := prover.Name()
+
+	tmpLogger := a.logger.WithFields(
+		"prover", proverName,
+		"proverId", proverID,
+		"proverAddr", prover.Addr(),
+	)
+
+	a.storageMutex.Lock()
+	defer a.storageMutex.Unlock()
+
+	// Get latest batch data from RPC
+	rpcBatch, err := a.rpcClient.GetLatestBatch()
+	if err != nil {
+		tmpLogger.Errorf("Error getting latest batch from RPC: %v", err)
+		return nil, nil, nil, err
+	}
+
+	batchNumber := rpcBatch.BatchNumber()
+
+	// Get virtual batch to get L1InfoRoot
+	virtualBatch, err := a.l1Syncr.GetVirtualBatchByBatchNumber(ctx, batchNumber)
+	if err != nil {
+		tmpLogger.Errorf("Error getting virtual batch: %v", err)
+		return nil, nil, nil, err
+	}
+
+	// Create state batch from RPC data
+	stateBatch := &state.Batch{
+		BatchNumber:     batchNumber,
+		Coinbase:        rpcBatch.LastCoinbase(),
+		BatchL2Data:     rpcBatch.L2Data(),
+		StateRoot:       rpcBatch.StateRoot(),
+		LocalExitRoot:   rpcBatch.LocalExitRoot(),
+		AccInputHash:    a.getAccInputHash(batchNumber - 1),
+		L1InfoTreeIndex: rpcBatch.L1InfoTreeIndex(),
+		L1InfoRoot:      *virtualBatch.L1InfoRoot,
+		Timestamp:       time.Now(),
+		GlobalExitRoot:  rpcBatch.GlobalExitRoot(),
+		ChainID:         a.cfg.ChainID,
+		ForkID:          a.cfg.ForkId,
+	}
+
+	// Generate proof metadata
+	now := time.Now().Round(time.Microsecond)
+	proof := &state.Proof{
+		BatchNumber:      batchNumber,
+		BatchNumberFinal: batchNumber,
+		Prover:           &proverName,
+		ProverID:         &proverID,
+		GeneratingSince:  &now,
+	}
+
+	// Store the generated proof to prevent other provers from processing the same batch
+	err = a.storage.AddGeneratedProof(ctx, proof, nil)
+	if err != nil {
+		tmpLogger.Errorf("Failed to add batch proof to DB for batch %d, err: %v", batchNumber, err)
+		return nil, nil, nil, err
+	}
+
+	return stateBatch, rpcBatch.L2Data(), proof, nil
+}
+
 func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInterface) (bool, error) {
 	tmpLogger := a.logger.WithFields(
 		"prover", prover.Name(),
@@ -1349,6 +1418,97 @@ func (a *Aggregator) tryGenerateBatchProof(ctx context.Context, prover ProverInt
 		proof.GeneratingSince = nil
 
 		// final proof has not been generated, update the batch proof
+		err := a.storage.UpdateGeneratedProof(a.ctx, proof, nil)
+		if err != nil {
+			err = fmt.Errorf("failed to store batch proof result, %w", err)
+			tmpLogger.Error(FirstToUpper(err.Error()))
+			return false, err
+		}
+	}
+
+	return true, nil
+}
+
+// tryGenerateBatchProof_FromRpcBatch attempts to generate a proof for the latest batch from RPC
+func (a *Aggregator) tryGenerateBatchProof_FromRpcBatch(ctx context.Context, prover ProverInterface) (bool, error) {
+	tmpLogger := a.logger.WithFields(
+		"prover", prover.Name(),
+		"proverId", prover.ID(),
+		"proverAddr", prover.Addr(),
+	)
+	tmpLogger.Debug("tryGenerateBatchProof_FromRpcBatch start")
+
+	// Get batch data from RPC
+	batchToProve, witness, proof, err := a.getAndProveBatchFromRPC(ctx, prover)
+	if err != nil {
+		return false, err
+	}
+
+	tmpLogger = tmpLogger.WithFields("batch", batchToProve.BatchNumber)
+
+	var genProofID *string
+
+	// Clean up on error
+	defer func() {
+		if err != nil {
+			tmpLogger.Debug("Deleting proof in progress")
+			err2 := a.storage.DeleteGeneratedProofs(ctx, proof.BatchNumber, proof.BatchNumberFinal, nil)
+			if err2 != nil {
+				tmpLogger.Errorf("Failed to delete proof in progress, err: %v", err2)
+			}
+		}
+		tmpLogger.Debug("tryGenerateBatchProof_FromRpcBatch end")
+	}()
+
+	// Build input for prover
+	tmpLogger.Infof("Sending zki + batch to the prover, batchNumber [%d]", batchToProve.BatchNumber)
+	inputProver, err := a.buildInputProver(ctx, batchToProve, witness)
+	if err != nil {
+		err = fmt.Errorf("failed to build input prover, %w", err)
+		tmpLogger.Error(FirstToUpper(err.Error()))
+		return false, err
+	}
+
+	// Send batch to prover
+	tmpLogger.Infof("Sending a batch to the prover. OldAccInputHash [%#x], L1InfoRoot [%#x]",
+		inputProver.PublicInputs.OldAccInputHash, inputProver.PublicInputs.L1InfoRoot)
+
+	genProofID, err = prover.BatchProof(inputProver)
+	if err != nil {
+		err = fmt.Errorf("failed to get batch proof id, %w", err)
+		tmpLogger.Error(FirstToUpper(err.Error()))
+		return false, err
+	}
+
+	proof.ProofID = genProofID
+
+	// Wait for the proof to be generated
+	tmpLogger = tmpLogger.WithFields("proofId", *proof.ProofID)
+
+	resGetProof, stateRoot, accInputHash, err := prover.WaitRecursiveProof(ctx, *proof.ProofID)
+	if err != nil {
+		err = fmt.Errorf("failed to get proof from prover, %w", err)
+		tmpLogger.Error(FirstToUpper(err.Error()))
+		return false, err
+	}
+
+	tmpLogger.Info("Batch proof generated")
+
+	if a.cfg.BatchProofSanityCheckEnabled {
+		a.performSanityChecks(tmpLogger, stateRoot, accInputHash, batchToProve)
+	}
+	proof.Proof = resGetProof
+
+	// Attempt to build the final proof
+	finalProofBuilt, finalProofErr := a.tryBuildFinalProof(ctx, prover, proof)
+	if finalProofErr != nil {
+		tmpLogger.Errorf("Error trying to build final proof: %v", finalProofErr)
+	}
+
+	if !finalProofBuilt {
+		proof.GeneratingSince = nil
+
+		// Update the batch proof if the final proof has not been generated
 		err := a.storage.UpdateGeneratedProof(a.ctx, proof, nil)
 		if err != nil {
 			err = fmt.Errorf("failed to store batch proof result, %w", err)
