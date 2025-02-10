@@ -1279,6 +1279,51 @@ func (a *Aggregator) getAndProveBatchFromRPC(
 	a.storageMutex.Lock()
 	defer a.storageMutex.Unlock()
 
+	// Get last virtual batch number from L1
+	lastVerifiedBatchNumber, err := a.etherman.GetLatestVerifiedBatchNum()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	proofExists := true
+	batchNumberToVerify := lastVerifiedBatchNumber
+
+	// Look for the batch number to verify
+	for proofExists {
+		batchNumberToVerify++
+		proofExists, err = a.storage.CheckProofExistsForBatch(ctx, batchNumberToVerify, nil)
+		if err != nil {
+			tmpLogger.Infof("Error checking proof exists for batch %d", batchNumberToVerify)
+
+			return nil, nil, nil, err
+		}
+
+		if proofExists {
+			accInputHash := a.getAccInputHash(batchNumberToVerify - 1)
+			if accInputHash == (common.Hash{}) && batchNumberToVerify > 1 {
+				tmpLogger.Warnf("AccInputHash for batch %d is not in memory, "+
+					"deleting proofs to regenerate acc input hash chain in memory", batchNumberToVerify)
+
+				err := a.storage.CleanupGeneratedProofs(ctx, math.MaxInt, nil)
+				if err != nil {
+					tmpLogger.Infof("Error cleaning up generated proofs for batch %d", batchNumberToVerify)
+					return nil, nil, nil, err
+				}
+				batchNumberToVerify--
+				break
+			}
+		}
+	}
+
+	sequence, err := a.l1Syncr.GetSequenceByBatchNumber(ctx, batchNumberToVerify)
+	if err != nil && !errors.Is(err, entities.ErrNotFound) {
+		return nil, nil, nil, err
+	}
+	if sequence == nil || errors.Is(err, entities.ErrNotFound) {
+		tmpLogger.Infof("Batch %d has not been synced yet", batchNumberToVerify)
+		return nil, nil, nil, state.ErrNotFound
+	}
+
 	// Get latest batch data from RPC
 	rpcBatch, err := a.rpcClient.GetLatestBatch()
 	if err != nil {
@@ -1289,11 +1334,71 @@ func (a *Aggregator) getAndProveBatchFromRPC(
 	batchNumber := rpcBatch.BatchNumber()
 
 	// Get virtual batch to get L1InfoRoot
-	virtualBatch, err := a.l1Syncr.GetVirtualBatchByBatchNumber(ctx, batchNumber)
-	if err != nil {
-		tmpLogger.Errorf("Error getting virtual batch: %v", err)
+	virtualBatch, err := a.l1Syncr.GetVirtualBatchByBatchNumber(a.ctx, batchNumberToVerify)
+	if err != nil && !errors.Is(err, entities.ErrNotFound) {
+		a.logger.Errorf("Error getting virtual batch: %v", err)
 		return nil, nil, nil, err
+	} else if errors.Is(err, entities.ErrNotFound) {
+		a.logger.Infof("Virtual batch %d has not been synced yet, "+
+			"so it is not possible to verify it yet. Waiting ...", batchNumberToVerify)
+		return nil, nil, nil, state.ErrNotFound
 	}
+
+	// Compare BatchL2Data from virtual batch and rpcBatch (skipping injected batch (1))
+	if batchNumberToVerify != 1 && (common.Bytes2Hex(virtualBatch.BatchL2Data) != common.Bytes2Hex(rpcBatch.L2Data())) {
+		a.logger.Warnf("BatchL2Data from virtual batch %d does not match the one from RPC", batchNumberToVerify)
+		a.logger.Warnf("VirtualBatch BatchL2Data:%v", common.Bytes2Hex(virtualBatch.BatchL2Data))
+		a.logger.Warnf("RPC BatchL2Data:%v", common.Bytes2Hex(rpcBatch.L2Data()))
+	}
+
+	l1InfoRoot := common.Hash{}
+
+	if virtualBatch.L1InfoRoot == nil {
+		log.Debugf("L1InfoRoot is nil for batch %d", batchNumberToVerify)
+		virtualBatch.L1InfoRoot = &l1InfoRoot
+	}
+
+	// Ensure the old acc input hash is in memory
+	oldAccInputHash := a.getAccInputHash(batchNumberToVerify - 1)
+	if oldAccInputHash == (common.Hash{}) && batchNumberToVerify > 1 {
+		tmpLogger.Warnf("AccInputHash for previous batch (%d) is not in memory. Waiting ...", batchNumberToVerify-1)
+		return nil, nil, nil, state.ErrNotFound
+	}
+
+	forcedBlockHashL1 := rpcBatch.ForcedBlockHashL1()
+	l1InfoRoot = *virtualBatch.L1InfoRoot
+
+	if batchNumberToVerify == 1 {
+		l1Block, err := a.l1Syncr.GetL1BlockByNumber(ctx, virtualBatch.BlockNumber)
+		if err != nil {
+			a.logger.Errorf("Error getting l1 block: %v", err)
+			return nil, nil, nil, err
+		}
+
+		forcedBlockHashL1 = l1Block.ParentHash
+		l1InfoRoot = rpcBatch.GlobalExitRoot()
+	}
+
+	// Calculate acc input hash as the RPC is not returning the correct one at the moment
+	accInputHash := cdkcommon.CalculateAccInputHash(
+		a.logger,
+		oldAccInputHash,
+		virtualBatch.BatchL2Data,
+		l1InfoRoot,
+		uint64(sequence.Timestamp.Unix()),
+		rpcBatch.LastCoinbase(),
+		forcedBlockHashL1,
+	)
+	// Store the acc input hash
+	a.setAccInputHash(batchNumberToVerify, accInputHash)
+
+	// Log params to calculate acc input hash
+	a.logger.Debugf("Calculated acc input hash for batch %d: %v", batchNumberToVerify, accInputHash)
+	a.logger.Debugf("OldAccInputHash: %v", oldAccInputHash)
+	a.logger.Debugf("L1InfoRoot: %v", virtualBatch.L1InfoRoot)
+	a.logger.Debugf("TimestampLimit: %v", uint64(sequence.Timestamp.Unix()))
+	a.logger.Debugf("LastCoinbase: %v", rpcBatch.LastCoinbase())
+	a.logger.Debugf("ForcedBlockHashL1: %v", rpcBatch.ForcedBlockHashL1())
 
 	// Create state batch from RPC data
 	stateBatch := &state.Batch{
@@ -1302,7 +1407,7 @@ func (a *Aggregator) getAndProveBatchFromRPC(
 		BatchL2Data:     rpcBatch.L2Data(),
 		StateRoot:       rpcBatch.StateRoot(),
 		LocalExitRoot:   rpcBatch.LocalExitRoot(),
-		AccInputHash:    a.getAccInputHash(batchNumber - 1),
+		AccInputHash:    accInputHash,
 		L1InfoTreeIndex: rpcBatch.L1InfoTreeIndex(),
 		L1InfoRoot:      *virtualBatch.L1InfoRoot,
 		Timestamp:       time.Now(),
