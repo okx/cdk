@@ -21,6 +21,7 @@ import (
 type RPCInterface interface {
 	GetBatch(batchNumber uint64) (*types.RPCBatch, error)
 	GetWitness(batchNumber uint64, fullWitness bool) ([]byte, error)
+	GetLatestBatch() (*types.RPCBatch, error)
 }
 
 type ProverInterface interface {
